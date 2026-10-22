@@ -1,5 +1,5 @@
 import { CTRL, SERIAL_SIZE, createShared, packCard, packOps, views } from './shared.js';
-import { lightSensorMillivolts } from './analog.js';
+import { lightLux } from './analog.js';
 
 const MIN_TOUCH_MS = 150;
 
@@ -12,7 +12,7 @@ export class Emulator extends EventTarget {
         this.worker = null;
         this.queuedOps = [];
         this.mailboxBusy = false;
-        Atomics.store(this.shared.ctrl, CTRL.LIGHT_MV, Math.round(lightSensorMillivolts(70)));
+        Atomics.store(this.shared.ctrl, CTRL.LIGHT_MICROLUX, Math.round(lightLux(70) * 1e6));
     }
 
     get ctrl() {
@@ -191,8 +191,8 @@ export class Emulator extends EventTarget {
         this.wake();
     }
 
-    setLightSensorMillivolts(mv) {
-        Atomics.store(this.ctrl, CTRL.LIGHT_MV, Math.round(mv));
+    setRoomLight(lux) {
+        Atomics.store(this.ctrl, CTRL.LIGHT_MICROLUX, Math.round(lux * 1e6));
     }
 
     outputs() {
