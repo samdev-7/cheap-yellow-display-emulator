@@ -9,8 +9,6 @@ const RATE_PER_MINUTE = { http: 120, dns: 120 };
 const BLOCKED_TYPES = new Set([251, 252, 255]);
 
 const FORBIDDEN = new Set(['accept-charset', 'accept-encoding', 'access-control-request-headers', 'access-control-request-method', 'connection', 'content-length', 'cookie', 'cookie2', 'date', 'dnt', 'expect', 'host', 'keep-alive', 'origin', 'referer', 'te', 'trailer', 'transfer-encoding', 'upgrade', 'via']);
-const SAFELISTED = new Set(['accept', 'accept-language', 'content-language', 'content-type', 'user-agent']);
-const SIMPLE_TYPES = new Set(['application/x-www-form-urlencoded', 'multipart/form-data', 'text/plain']);
 
 const REASONS = { 200: 'OK', 201: 'Created', 202: 'Accepted', 204: 'No Content', 301: 'Moved Permanently', 302: 'Found', 303: 'See Other', 304: 'Not Modified', 307: 'Temporary Redirect', 308: 'Permanent Redirect', 400: 'Bad Request', 401: 'Unauthorized', 403: 'Forbidden', 404: 'Not Found', 405: 'Method Not Allowed', 409: 'Conflict', 429: 'Too Many Requests', 500: 'Internal Server Error', 502: 'Bad Gateway', 503: 'Service Unavailable', 504: 'Gateway Timeout' };
 
@@ -20,7 +18,6 @@ export class NetworkBridge {
         this.wake = wake;
         this.notice = notice;
         this.fetch = fetchImpl;
-        this.routes = new Map(); // origin -> 'direct' | 'proxy'
         this.waiting = new Map(); // request id -> { answer, bytes }, until the worker takes the bytes.
         this.recent = {}; // 'http' | 'dns' -> times of recent requests.
     }
@@ -129,39 +126,8 @@ export class NetworkBridge {
         if (isPrivateHost(target.hostname)) {
             throw failure(ERRNO.EHOSTUNREACH, `The emulator can't reach ${target.hostname}: it's on a private network.`);
         }
-        const route = this.routes.get(target.origin);
-        const directPossible = this.canGoDirect(target);
-        let reply = null;
-        if (directPossible && (route === 'direct' || (route !== 'proxy' && (this.safeToRetry(method, headers) || !this.proxy)))) {
-            reply = await this.direct(method, url, headers, body).catch((error) => {
-                if (!this.proxy || error.errno) throw error;
-                this.routes.set(target.origin, 'proxy');
-                return null;
-            });
-            if (reply) this.routes.set(target.origin, 'direct');
-        }
-        if (!reply) {
-            if (!this.proxy) throw failure(ERRNO.ECONNREFUSED);
-            reply = await this.viaProxy(method, url, headers, body);
-        }
+        const reply = this.proxy ? await this.viaProxy(method, url, headers, body) : await this.direct(method, url, headers, body);
         return toHttp(reply, method, keepAlive);
-    }
-
-    canGoDirect(target) {
-        if (!this.proxy) return true;
-        return target.protocol === 'https:' && (target.port === '' || target.port === '443') && !/^[\d.]+$/.test(target.hostname);
-    }
-
-    safeToRetry(method, headers) {
-        if (method === 'GET' || method === 'HEAD') return true;
-        if (method !== 'POST') return true;
-        for (const [name, value] of headers) {
-            const key = name.toLowerCase();
-            if (FORBIDDEN.has(key)) continue;
-            if (!SAFELISTED.has(key)) return true;
-            if (key === 'content-type' && !SIMPLE_TYPES.has(value.split(';')[0].trim().toLowerCase())) return true;
-        }
-        return false;
     }
 
     async direct(method, url, headers, body) {
