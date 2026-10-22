@@ -2,7 +2,7 @@ import { CTRL } from './shared.js';
 import { ILI9341 } from './ili9341.js';
 import { XPT2046 } from './xpt2046.js';
 import { SDCard } from './sdcard.js';
-import { adcMillivolts, lightSensorMillivolts } from './analog.js';
+import { adcMillivolts } from './analog.js';
 
 const PIN = {
     BOOT: 0,
@@ -198,8 +198,7 @@ export class CYDBoard {
 
     pinMillivolts(pin) {
         if (pin === PIN.LDR) {
-            const lux = Atomics.load(this.ctrl, CTRL.LIGHT_MICROLUX) / 1e6;
-            return lightSensorMillivolts(lux, Atomics.load(this.ctrl, CTRL.BACKLIGHT) / 1000);
+            return Atomics.load(this.ctrl, CTRL.LIGHT_MV);
         }
         if (this.dac[pin] >= 0) {
             return Math.round((this.dac[pin] / 255) * 3300);

@@ -10,7 +10,7 @@ export const CTRL = {
     TOUCH_X: 5, // Screen pixels, 0..319.
     TOUCH_Y: 6, // Screen pixels, 0..239.
     BOOT_BUTTON: 7, // 1 while the BOOT button is held down.
-    LIGHT_MICROLUX: 8, // Light in the room, falling on the light sensor, in millionths of a lux.
+    LIGHT_MV: 8, // Voltage on the light sensor pin, in millivolts.
     FRAME: 9, // Bumped by the worker whenever the screen changes.
     MAILBOX_STATE: 10, // 1 when the mailbox holds file operations to apply.
     DISPLAY_ON: 11, // 1 when the panel is out of sleep and switched on.

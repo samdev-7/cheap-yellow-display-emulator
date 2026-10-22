@@ -356,23 +356,17 @@ export class BoardView {
         dial.append(value);
 
         let level = 70;
-        const reading = () => {
-            const lux = lightLux(level);
-            const mv = Math.round(lightSensorMillivolts(lux, this.emulator.outputs().backlight));
-            return { lux: formatLux(lux), value: analogInValue(mv) };
-        };
-        this.attachTip(dial, () => {
-            const { lux, value } = reading();
-            return [{ text: lux }, { text: `(${value})` }];
-        }, { stacked: true });
+        let reading = null;
+        this.attachTip(dial, () => [{ text: reading.lux }, { text: `(${reading.value})` }], { stacked: true });
         const set = (next, fromUser = true) => {
             level = Math.max(0, Math.min(100, Math.round(next)));
             dial.style.setProperty('--level', `${level}%`);
             dial.setAttribute('aria-valuenow', String(level));
-            this.emulator.setRoomLight(lightLux(level));
+            const mv = Math.round(lightSensorMillivolts(level));
+            this.emulator.setLightSensorMillivolts(mv);
             value.textContent = String(level);
-            const { lux, value: read } = reading();
-            dial.setAttribute('aria-valuetext', `${lux}, AnalogIn reads ${read}`);
+            reading = { lux: formatLux(lightLux(level)), value: analogInValue(mv) };
+            dial.setAttribute('aria-valuetext', `${reading.lux}, AnalogIn reads ${reading.value}`);
             this.refreshTip();
             if (fromUser) {
                 this.onLight?.(level);

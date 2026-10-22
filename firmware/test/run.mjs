@@ -58,7 +58,7 @@ if (values.touch) {
     Atomics.store(shared.ctrl, CTRL.TOUCH_Y, y);
     Atomics.store(shared.ctrl, CTRL.TOUCH_PRESSED, 1);
 }
-Atomics.store(shared.ctrl, CTRL.LIGHT_MICROLUX, 170000); // A dark room, 0.17 lux.
+Atomics.store(shared.ctrl, CTRL.LIGHT_MV, 300);
 Atomics.store(shared.ctrl, CTRL.WIFI_MODE, Number(values['wifi-mode']));
 
 const finish = () => {
