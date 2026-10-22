@@ -907,6 +907,12 @@ select {
     border-radius: 0.2cqw;
 }
 
+.board-button:focus,
+.board-hotspot:focus {
+    outline: 2px solid var(--focus);
+    outline-offset: 2px;
+}
+
 .board-hotspot {
     padding: 0;
     border: none;

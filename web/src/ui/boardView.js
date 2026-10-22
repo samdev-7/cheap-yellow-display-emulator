@@ -51,6 +51,8 @@ function formatLux(lux) {
     return `${lux < 10 ? lux.toPrecision(1) : Math.round(lux).toLocaleString()} lux`;
 }
 
+const BOOT_TAP_MS = 200;
+
 export class BoardView {
     constructor(host, emulator, { onReset, onLight, onPower }) {
         this.emulator = emulator;
@@ -251,20 +253,17 @@ export class BoardView {
         };
         this.bootButtons = [...(this.bootButtons ?? []), button];
         button.addEventListener('pointerdown', (event) => {
-            event.preventDefault();
             button.setPointerCapture(event.pointerId);
             press(true);
         });
         button.addEventListener('pointerup', () => press(false));
         button.addEventListener('pointercancel', () => press(false));
-        button.addEventListener('keydown', (event) => {
-            if ((event.key === ' ' || event.key === 'Enter') && !event.repeat) {
-                event.preventDefault();
+        button.addEventListener('click', (event) => {
+            if (event.detail === 0) {
                 press(true);
+                setTimeout(() => press(false), BOOT_TAP_MS);
             }
         });
-        button.addEventListener('keyup', () => press(false));
-        button.addEventListener('blur', () => press(false));
     }
 
     led(side, x, y, w, h, lensR, drawPackage) {
