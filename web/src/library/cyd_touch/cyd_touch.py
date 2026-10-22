@@ -1,19 +1,11 @@
 # Touchscreen driver for the Cheap Yellow Display's XPT2046 controller.
-#
 #   import cyd_touch
 #   touch = cyd_touch.Touch()
-#   point = touch.read()   # (x, y) in screen pixels, or None when not touched
-#
-# The touch controller has its own SPI bus (board.TOUCH_SPI pins), separate
-# from the display's, so both can be used at once.
 
 import board
 import busio
 import digitalio
 
-# Raw readings at the screen edges. Every panel is a little different: if
-# touches land in the wrong place on your board, print touch.read_raw() at
-# the corners and adjust these.
 X_MIN = 200
 X_MAX = 3700
 Y_MIN = 240
@@ -23,7 +15,6 @@ _READ_X = 0x90  # Channel that follows the screen's x axis on the CYD.
 _READ_Y = 0xD0  # Channel that follows the screen's y axis on the CYD.
 _READ_Z1 = 0xB0
 _READ_Z2 = 0xC0
-
 
 class Touch:
     def __init__(self, width=320, height=240, pressure=100):

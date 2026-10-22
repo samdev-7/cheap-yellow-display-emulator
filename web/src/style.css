@@ -303,8 +303,41 @@ select {
 .files {
     grid-area: files;
     background: var(--panel);
-    overflow: auto;
+    display: flex;
+    flex-direction: column;
     min-width: 0;
+    min-height: 0;
+}
+
+#file-tree {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+    overscroll-behavior: none;
+}
+
+.credit {
+    flex: none;
+    padding: 8px 10px;
+    border-top: 1px solid var(--border);
+    text-align: center;
+    font-size: 11px;
+    line-height: 1.4;
+    color: var(--muted);
+}
+
+.credit a {
+    color: inherit;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+
+.credit a:hover {
+    color: var(--text);
+}
+
+.credit .nowrap {
+    white-space: nowrap;
 }
 
 .editor-pane {
@@ -415,7 +448,6 @@ select {
 }
 
 .tree {
-    min-height: calc(100% - 34px);
     padding: 0 0 24px;
 }
 
