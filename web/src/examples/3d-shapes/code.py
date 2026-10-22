@@ -177,8 +177,9 @@ while True:
         else:
             px, py, pt, moved = held
             step = max(0.001, now - pt)
-            spin_y = (x - px) / step * 0.01
-            spin_x = (y - py) / step * 0.01
+            # The side facing you follows your finger.
+            spin_y = -(x - px) / step * 0.01
+            spin_x = -(y - py) / step * 0.01
             held = (x, y, now, moved or abs(x - px) + abs(y - py) > 3)
     elif held is not None:
         if not held[3]:
