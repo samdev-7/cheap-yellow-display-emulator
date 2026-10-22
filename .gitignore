@@ -6,3 +6,6 @@ web/node_modules/
 web/dist/
 
 .DS_Store
+
+# Local secrets (network proxy keys)
+web/.env*.local

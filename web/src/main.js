@@ -14,6 +14,7 @@ import JSZip from 'jszip';
 import { Emulator } from './emulator/emulator.js';
 import { CARD_SIZES_GB, blankCard, formattedCard } from './emulator/sdcard.js';
 import { DEFAULT_NAME, EXAMPLES, ProjectStore, normalisePath } from './project.js';
+import { NetworkProxy } from './net/proxy.js';
 import { BoardView } from './ui/boardView.js';
 import { FileTree } from './ui/fileTree.js';
 import { Menu } from './ui/menu.js';
@@ -510,5 +511,6 @@ $('download').onclick = async () => {
 showProject();
 
 if (import.meta.env.DEV) {
-    window.cyd = { emulator, terminal, store, tree, board, get project() { return project; } };
+    const network = new NetworkProxy();
+    window.cyd = { emulator, terminal, store, tree, board, network, get project() { return project; } };
 }
