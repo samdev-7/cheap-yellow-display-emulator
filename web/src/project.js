@@ -43,6 +43,7 @@ export const EXAMPLES = [
     { id: 'hello', title: 'Hello, CYD!' },
     { id: 'touch-paint', title: 'Touch paint' },
     { id: 'bouncy-balls', title: 'Bouncy balls' },
+    { id: '3d-shapes', title: '3D shapes' },
     { id: 'rgb-led', title: 'RGB LED colour wheel' },
     { id: 'light-sensor', title: 'Light sensor' },
     { id: 'boot-button', title: 'BOOT button and backlight' },
