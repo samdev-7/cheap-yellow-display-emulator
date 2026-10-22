@@ -239,6 +239,7 @@ const board = new BoardView($('board'), emulator, {
         project.board.light = level;
         scheduleSave();
     },
+    onPower: () => setPower(!emulator.powered),
 });
 
 function showSide() {

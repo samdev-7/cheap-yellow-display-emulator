@@ -847,6 +847,16 @@ select {
 
 .board-cable > * {
     position: absolute;
+    pointer-events: auto;
+    cursor: pointer;
+}
+
+.board-cable-hotspot {
+    position: absolute;
+    padding: 0;
+    border: 0;
+    background: none;
+    cursor: pointer;
 }
 
 .board-cable-cord {

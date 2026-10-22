@@ -46,9 +46,10 @@ function face(className, svgText) {
 }
 
 export class BoardView {
-    constructor(host, emulator, { onReset, onLight }) {
+    constructor(host, emulator, { onReset, onLight, onPower }) {
         this.emulator = emulator;
         this.onReset = onReset;
+        this.onPower = onPower;
         this.onLight = onLight;
         this.host = host;
         host.classList.add('board-view');
@@ -176,6 +177,13 @@ export class BoardView {
         part('board-cable-plug', 1.2, 16, 10.4);
         part('board-cable-tip', -0.4, 1.4, 6.8);
         overlay.append(element);
+        const plug = document.createElement('button');
+        plug.className = 'board-cable-hotspot';
+        place(plug, edge + dir * 8, y, 18, 10.4);
+        plug.addEventListener('click', () => this.onPower());
+        element.addEventListener('click', () => this.onPower());
+        overlay.append(plug);
+        this.plugs = [...(this.plugs ?? []), plug];
         return element;
     }
 
@@ -205,6 +213,10 @@ export class BoardView {
     setPowered(on) {
         for (const cable of this.cables) {
             cable.hidden = !on;
+        }
+        for (const plug of this.plugs) {
+            plug.title = on ? 'Unplug the USB cable' : 'Plug in the USB cable';
+            plug.setAttribute('aria-label', plug.title);
         }
     }
 
