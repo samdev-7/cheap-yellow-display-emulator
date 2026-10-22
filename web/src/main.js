@@ -22,7 +22,8 @@ import { initSplitters } from './ui/splitters.js';
 const $ = (id) => document.getElementById(id);
 
 if (!crossOriginIsolated) {
-    $('status').textContent = 'This page must be served with cross-origin isolation headers (see web/README).';
+    $('status').textContent =
+        "The emulator can't start: this page isn't served with cross-origin isolation headers (see Deploying in README.md).";
 }
 
 const store = await ProjectStore.load();
