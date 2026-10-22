@@ -31,7 +31,8 @@ if (!crossOriginIsolated) {
 
 const store = await ProjectStore.load();
 let project = await store.openCurrent();
-const emulator = new Emulator({ firmwareUrl: `${import.meta.env.BASE_URL}firmware/circuitpython.mjs` });
+const esp32Speed = Number(new URLSearchParams(location.search).get('esp32-speed')) || 1;
+const emulator = new Emulator({ firmwareUrl: `${import.meta.env.BASE_URL}firmware/circuitpython.mjs`, esp32Speed: Math.max(1, esp32Speed) });
 
 let boardFiles = null;
 let openPath = '/code.py';

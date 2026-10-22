@@ -4,8 +4,9 @@ import { lightSensorMillivolts } from './analog.js';
 const MIN_TOUCH_MS = 150;
 
 export class Emulator extends EventTarget {
-    constructor({ firmwareUrl }) {
+    constructor({ firmwareUrl, esp32Speed = 1 }) {
         super();
+        this.esp32Speed = esp32Speed;
         this.firmwareUrl = new URL(firmwareUrl, location.href).href;
         this.sab = createShared();
         this.shared = views(this.sab);
@@ -37,7 +38,7 @@ export class Emulator extends EventTarget {
         this.worker.onerror = (event) => {
             this.emit('state', { running: false, message: `Emulator failed to start: ${event.message}` });
         };
-        this.worker.postMessage({ type: 'start', sab: this.sab, firmwareUrl: this.firmwareUrl, files, card });
+        this.worker.postMessage({ type: 'start', sab: this.sab, firmwareUrl: this.firmwareUrl, files, card, costScale: 1 / this.esp32Speed });
         this.emit('state', { running: true, message: 'Starting…' });
     }
 
