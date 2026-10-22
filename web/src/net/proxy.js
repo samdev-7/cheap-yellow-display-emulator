@@ -1,8 +1,13 @@
 const TEST_SITE_KEY = '1x00000000000000000000AA'; // Cloudflare's always-pass test key.
-const SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY || (import.meta.env.DEV ? TEST_SITE_KEY : '');
+const env = import.meta.env ?? {}; // Undefined outside Vite, as in tests.
+const SITE_KEY = env.VITE_TURNSTILE_SITE_KEY || (env.DEV ? TEST_SITE_KEY : '');
 const TURNSTILE_SCRIPT = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
-const REFRESH_MARGIN_MS = 30_000;
-const KEEP_WARM_MS = 5 * 60_000;
+const TIMING = {
+    refreshMarginMs: 30_000, // Get a new token this long before the current one ends.
+    sessionMarginMs: 2 * 60_000, // Renew the session this long before it ends.
+    keepWarmMs: 5 * 60_000, // Keep refreshing for this long after the proxy was last used.
+    retryMs: 15_000, // After a background refresh fails, try again this soon.
+};
 
 export class ProxyError extends Error {
     constructor(code, message, status) {
@@ -13,9 +18,13 @@ export class ProxyError extends Error {
 }
 
 export class NetworkProxy {
-    constructor() {
-        this.access = null; // { token, expiresAt }
-        this.pending = null; // The token being fetched, shared by everyone waiting.
+    constructor({ fetch: fetchImpl, turnstile = runTurnstile, ...timing } = {}) {
+        this.fetch = fetchImpl ?? ((...args) => globalThis.fetch(...args));
+        this.turnstile = turnstile;
+        this.timing = { ...TIMING, ...timing };
+        this.access = null; // { token, expiresAt } on this page's clock.
+        this.sessionExpiresAt = 0; // On this page's clock; 0 when unknown.
+        this.pending = null; // The refresh under way, shared by everyone waiting.
         this.refreshTimer = 0;
         this.lastUsed = 0;
     }
@@ -24,7 +33,7 @@ export class NetworkProxy {
         this.lastUsed = Date.now();
         const meta = base64url(JSON.stringify({ method, url, headers }));
         const send = async (token) =>
-            fetch('/api/proxy', {
+            this.fetch('/api/proxy', {
                 method: 'POST',
                 headers: { Authorization: `Bearer ${token}`, 'X-Proxy-Request': meta },
                 body: body ?? new Uint8Array(),
@@ -44,9 +53,13 @@ export class NetworkProxy {
     }
 
     token() {
-        if (this.access && this.access.expiresAt - Date.now() > REFRESH_MARGIN_MS) {
+        if (this.access && this.access.expiresAt - Date.now() > this.timing.refreshMarginMs) {
             return Promise.resolve(this.access.token);
         }
+        return this.refresh();
+    }
+
+    refresh() {
         this.pending ??= this.fetchToken().finally(() => {
             this.pending = null;
         });
@@ -54,48 +67,51 @@ export class NetworkProxy {
     }
 
     async fetchToken() {
-        let response = await post('/api/token');
+        if (this.sessionExpiresAt && this.sessionExpiresAt - Date.now() < this.timing.sessionMarginMs) {
+            await this.startSession();
+        }
+        let response = await this.post('/api/token');
         if (response.status === 401) {
             await this.startSession();
-            response = await post('/api/token');
+            response = await this.post('/api/token');
         }
         const reply = await response.json().catch(() => ({}));
         if (!response.ok) {
             throw new ProxyError(reply.error || 'token', reply.message || `Couldn't get a proxy token (${response.status}).`, response.status);
         }
-        this.access = { token: reply.token, expiresAt: reply.expiresAt };
-        this.scheduleRefresh();
+        const received = Date.now();
+        this.access = { token: reply.token, expiresAt: received + reply.expiresIn * 1000 };
+        this.sessionExpiresAt = received + reply.sessionExpiresIn * 1000;
+        this.scheduleRefresh(this.access.expiresAt - received - this.timing.refreshMarginMs);
         return reply.token;
     }
 
-    scheduleRefresh() {
+    scheduleRefresh(wait) {
         clearTimeout(this.refreshTimer);
-        const wait = Math.max(0, this.access.expiresAt - Date.now() - REFRESH_MARGIN_MS);
         this.refreshTimer = setTimeout(() => {
-            if (Date.now() - this.lastUsed < KEEP_WARM_MS) {
-                this.access = null;
-                this.token().catch(() => {});
-            }
-        }, wait);
+            if (Date.now() - this.lastUsed > this.timing.keepWarmMs) return;
+            this.refresh().catch(() => this.scheduleRefresh(this.timing.retryMs));
+        }, Math.max(1000, wait));
     }
 
     async startSession() {
-        const turnstile = await runTurnstile();
-        const response = await post('/api/session', { turnstile });
+        const turnstile = await this.turnstile();
+        const response = await this.post('/api/session', { turnstile });
+        const reply = await response.json().catch(() => ({}));
         if (!response.ok) {
-            const reply = await response.json().catch(() => ({}));
             throw new ProxyError(reply.error || 'session', reply.message || `Couldn't start a proxy session (${response.status}).`, response.status);
         }
+        this.sessionExpiresAt = Date.now() + reply.expiresIn * 1000;
     }
-}
 
-function post(path, body) {
-    return fetch(path, {
-        method: 'POST',
-        headers: body ? { 'Content-Type': 'application/json' } : {},
-        body: body ? JSON.stringify(body) : undefined,
-        credentials: 'same-origin',
-    });
+    post(path, body) {
+        return this.fetch(path, {
+            method: 'POST',
+            headers: body ? { 'Content-Type': 'application/json' } : {},
+            body: body ? JSON.stringify(body) : undefined,
+            credentials: 'same-origin',
+        });
+    }
 }
 
 let turnstileLoaded = null;

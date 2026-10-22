@@ -33,7 +33,7 @@ export async function handleSession(request, env) {
     const exp = Math.floor(Date.now() / 1000) + SESSION_SECONDS;
     const session = sign({ kind: 'session', sid: newId(), ip: clientHash(request, settings), exp }, settings.secret);
     const secure = settings.dev ? '' : '; Secure';
-    return json(200, { expiresAt: exp * 1000 }, {
+    return json(200, { expiresAt: exp * 1000, expiresIn: SESSION_SECONDS }, {
         'Set-Cookie': `${SESSION_COOKIE}=${session}; Path=/api; Max-Age=${SESSION_SECONDS}; HttpOnly; SameSite=Strict${secure}`,
     });
 }
@@ -55,7 +55,14 @@ export async function handleToken(request, env) {
     }
     const exp = Math.min(session.exp, Math.floor(Date.now() / 1000) + ACCESS_SECONDS);
     const token = sign({ kind: 'access', sid: session.sid, ip: session.ip, exp }, settings.secret);
-    return json(200, { token, expiresAt: exp * 1000, sessionExpiresAt: session.exp * 1000 });
+    const now = Date.now() / 1000;
+    return json(200, {
+        token,
+        expiresAt: exp * 1000,
+        expiresIn: Math.max(0, Math.floor(exp - now)),
+        sessionExpiresAt: session.exp * 1000,
+        sessionExpiresIn: Math.max(0, Math.floor(session.exp - now)),
+    });
 }
 
 function readCookie(request, name) {
