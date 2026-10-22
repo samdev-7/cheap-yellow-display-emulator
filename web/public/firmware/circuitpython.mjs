@@ -660,6 +660,8 @@ async function createWasm() {
 
   var _wasm_hal_reset = (toBootloader) => Module.hal.reset(toBootloader !== 0);
 
+  var _wasm_hal_vm_counters = (opcodes, calls) => Module.hal.vmCounters(() => HEAPU32[opcodes >> 2], () => HEAPU32[calls >> 2]);
+
   var _wasm_i2c_read = (scl, addr, ptr, len) =>
           Module.hal.i2cRead(scl, addr, HEAPU8.subarray(ptr, ptr + len));
 
@@ -895,6 +897,8 @@ var wasmImports = {
   wasm_hal_now_us: _wasm_hal_now_us,
   /** @export */
   wasm_hal_reset: _wasm_hal_reset,
+  /** @export */
+  wasm_hal_vm_counters: _wasm_hal_vm_counters,
   /** @export */
   wasm_i2c_read: _wasm_i2c_read,
   /** @export */

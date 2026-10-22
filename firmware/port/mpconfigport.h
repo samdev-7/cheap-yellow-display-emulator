@@ -25,4 +25,13 @@
 
 #define INTERNAL_FLASH_FILESYSTEM_SIZE      (1216 * 1024)
 
+extern uint32_t wasm_vm_opcodes;
+extern uint32_t wasm_vm_calls;
+#define MICROPY_VM_HOOK_OPCODE(op) do { \
+        wasm_vm_opcodes++; \
+        if ((uint8_t)((op) - 0x34) < 4) { \
+            wasm_vm_calls++; \
+        } \
+} while (0)
+
 #define WASM_PORT_HEAP_SIZE                 (160 * 1024)

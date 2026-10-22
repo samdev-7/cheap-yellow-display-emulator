@@ -6,6 +6,7 @@ addToLibrary({
     wasm_hal_now_us: () => Module.hal.nowUs(),
     wasm_hal_idle: (timeoutMs) => Module.hal.idle(timeoutMs),
     wasm_hal_background: () => Module.hal.background(),
+    wasm_hal_vm_counters: (opcodes, calls) => Module.hal.vmCounters(() => HEAPU32[opcodes >> 2], () => HEAPU32[calls >> 2]),
     wasm_hal_reset: (toBootloader) => Module.hal.reset(toBootloader !== 0),
 
     wasm_serial_write: (ptr, len) => Module.hal.serialWrite(HEAPU8.slice(ptr, ptr + len)),

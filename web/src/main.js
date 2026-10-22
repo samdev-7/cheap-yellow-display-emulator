@@ -227,6 +227,14 @@ emulator.addEventListener('files-applied', (event) => {
 });
 
 emulator.addEventListener('reset-requested', () => boot());
+
+emulator.addEventListener('speed', (event) => {
+    const { ratio } = event.detail;
+    $('speed-warning').hidden = ratio === null;
+    if (ratio !== null) {
+        $('speed-warning-text').textContent = `Simulation can't keep up. Running ${ratio.toFixed(ratio < 0.1 ? 2 : 1)}x realtime`;
+    }
+});
 emulator.addEventListener('state', (event) => setStatus(event.detail.message));
 
 function setStatus(text) {

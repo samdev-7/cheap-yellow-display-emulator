@@ -20,6 +20,8 @@ const { values, positionals } = parseArgs({
         card: { type: 'string' },
         'blank-card': { type: 'string' },
         'wifi-mode': { type: 'string', default: '0' },
+        fast: { type: 'boolean', default: false },
+        'cost-scale': { type: 'string', default: '1' },
     },
 });
 
@@ -67,6 +69,10 @@ const finish = () => {
         writeFileSync(values.png, png(shared.framebuffer, SCREEN_WIDTH, SCREEN_HEIGHT));
     }
     const ctrl = shared.ctrl;
+    if (values.fast) {
+        const { opcodes, calls } = hal.speed.stats();
+        console.error(`\n[ran ${opcodes} opcodes, ${calls} calls]`);
+    }
     console.error(
         `\n[display ${Atomics.load(ctrl, CTRL.DISPLAY_ON) ? 'on' : 'off'}, backlight ${Atomics.load(ctrl, CTRL.BACKLIGHT)}, ` +
         `led r${Atomics.load(ctrl, CTRL.LED_RED)} g${Atomics.load(ctrl, CTRL.LED_GREEN)} b${Atomics.load(ctrl, CTRL.LED_BLUE)}]`,
@@ -85,10 +91,12 @@ network.unref();
 const hal = createHal(shared, files, (message) => {
     if (message.type === 'serial') {
         process.stdout.write(decoder.decode(message.bytes, { stream: true }));
+    } else if (message.type === 'speed') {
+        console.error(`[speed: ${message.ratio === null ? 'keeping up' : `${message.ratio.toFixed(2)}x realtime`}]`);
     } else if (message.type.startsWith('net')) {
         network.postMessage(message);
     }
-}, card);
+}, card, { realSpeed: !values.fast, costScale: Number(values['cost-scale']) });
 
 const background = hal.background;
 let typed = false;

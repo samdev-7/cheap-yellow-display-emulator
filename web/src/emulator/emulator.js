@@ -46,6 +46,7 @@ export class Emulator extends EventTarget {
             this.worker.terminate();
             this.worker = null;
         }
+        this.emit('speed', { ratio: null });
     }
 
     powerOff() {
@@ -87,6 +88,9 @@ export class Emulator extends EventTarget {
                 if (message.generation === Atomics.load(this.ctrl, CTRL.SD_GENERATION)) {
                     this.emit('sd-blocks', message.blocks);
                 }
+                break;
+            case 'speed':
+                this.emit('speed', { ratio: message.ratio });
                 break;
             case 'reset':
                 this.emit('reset-requested', { toBootloader: message.toBootloader });

@@ -16,6 +16,9 @@
     --file: #d5d9df;
     --file-fold: #b6bcc5;
     --splitter-hover: #c9c6bc;
+    --warning-bg: #fdf1d8;
+    --warning-border: #f0d29a;
+    --warning-text: #7a4d00;
     color-scheme: light;
 }
 
@@ -35,6 +38,9 @@
         --file: #8d939c;
         --file-fold: #6b717a;
         --splitter-hover: #4a4c53;
+        --warning-bg: #3a2c12;
+        --warning-border: #6b5122;
+        --warning-text: #f3cf86;
         color-scheme: dark;
     }
 }
@@ -371,6 +377,38 @@ select {
     gap: 12px;
     overflow: clip;
     min-width: 0;
+}
+
+.device-pane {
+    position: relative;
+}
+
+.speed-warning {
+    position: absolute;
+    left: 50%;
+    bottom: 3px;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 1px 8px;
+    border: 1px solid var(--warning-border);
+    border-radius: 999px;
+    background: var(--warning-bg);
+    color: var(--warning-text);
+    font-size: 11px;
+    line-height: 14px;
+    white-space: nowrap;
+}
+
+.speed-warning[hidden] {
+    display: none;
+}
+
+.speed-warning svg {
+    width: 12px;
+    height: 12px;
+    flex: none;
 }
 
 .console-pane {

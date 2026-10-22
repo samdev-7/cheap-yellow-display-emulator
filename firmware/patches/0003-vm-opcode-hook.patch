@@ -1,0 +1,33 @@
+diff --git a/py/vm.c b/py/vm.c
+index 860aa36..8947d2a 100644
+--- a/py/vm.c
++++ b/py/vm.c
+@@ -252,6 +252,12 @@ mp_vm_return_kind_t MICROPY_WRAP_MP_EXECUTE_BYTECODE(mp_execute_bytecode)(mp_cod
+ #define MARK_EXC_IP_GLOBAL() { code_state->ip = ip; }
+ #endif
+ 
++// Called with each opcode as it's dispatched: a port can count the work
++// done, as the WebAssembly port does to run at the board's speed.
++#ifndef MICROPY_VM_HOOK_OPCODE
++#define MICROPY_VM_HOOK_OPCODE(op)
++#endif
++
+ #if MICROPY_OPT_COMPUTED_GOTO
+     #include "py/vmentrytable.h"
+     // CIRCUITPY-CHANGE
+@@ -259,6 +265,7 @@ mp_vm_return_kind_t MICROPY_WRAP_MP_EXECUTE_BYTECODE(mp_execute_bytecode)(mp_cod
+     #define ONE_TRUE_DISPATCH() one_true_dispatch : do { \
+         TRACE(ip); \
+         MARK_EXC_IP_GLOBAL(); \
++        MICROPY_VM_HOOK_OPCODE(*ip); \
+         goto *(void *)((char *) && entry_MP_BC_LOAD_CONST_FALSE + entry_table[*ip++]); \
+ } while (0)
+     #define DISPATCH() do { goto one_true_dispatch; } while (0)
+@@ -268,6 +275,7 @@ mp_vm_return_kind_t MICROPY_WRAP_MP_EXECUTE_BYTECODE(mp_execute_bytecode)(mp_cod
+         TRACE(ip); \
+         MARK_EXC_IP_GLOBAL(); \
+         TRACE_TICK(ip, sp, false); \
++        MICROPY_VM_HOOK_OPCODE(*ip); \
+         goto *entry_table[*ip++]; \
+ } while (0)
+     #endif

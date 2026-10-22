@@ -1,12 +1,13 @@
 import { CTRL, SERIAL_SIZE, unpackCard, unpackOps } from './shared.js';
 import { CYDBoard } from './board.js';
 import { Network } from './network.js';
+import { Speed } from './speed.js';
 
 const OUTPUT_FLUSH_MS = 16;
 const OUTPUT_FLUSH_BYTES = 4096;
 const SD_SYNC_MS = 500;
 
-export function createHal(shared, files, post, card) {
+export function createHal(shared, files, post, card, { realSpeed = true, costScale = 1 } = {}) {
     const { ctrl, serial, mailbox, sdArea } = shared;
     const board = new CYDBoard(shared, card);
     board.reset();
@@ -51,13 +52,29 @@ export function createHal(shared, files, post, card) {
         lastFlush = performance.now();
     };
 
-    const sleep = (ms) => {
+    const pause = (ms) => {
         flush();
         if (performance.now() - lastSdSync > SD_SYNC_MS) {
             syncCard();
         }
         Atomics.wait(ctrl, CTRL.WAKE, Atomics.load(ctrl, CTRL.WAKE), ms);
     };
+    const sleep = (ms) => {
+        const start = performance.now();
+        pause(ms);
+        speed.idled(performance.now() - start);
+    };
+    const speed = new Speed({
+        enabled: realSpeed,
+        costScale,
+        sleep: (ms) => {
+            const until = performance.now() + ms;
+            for (let left = ms; left > 0; left = until - performance.now()) {
+                pause(left);
+            }
+        },
+        report: (ratio) => post({ type: 'speed', ratio }),
+    });
 
     let pendingOps = files.map((f) => ({ kind: 1, path: f.path, data: f.data }));
     let fromMailbox = false;
@@ -66,7 +83,8 @@ export function createHal(shared, files, post, card) {
         nowUs: () => (performance.now() - start) * 1000,
         idle: (ms) => sleep(ms),
         background: () => {
-            if (++backgroundCalls & 0xff) {
+            speed.tick();
+            if (++backgroundCalls & 0xf) {
                 return;
             }
             const now = performance.now();
@@ -161,6 +179,8 @@ export function createHal(shared, files, post, card) {
         flashDirty: () => {},
 
         net: new Network(ctrl, post),
+        vmCounters: (readOpcodes, readCalls) => speed.counters(readOpcodes, readCalls),
+        speed,
     };
 
     hal.flush = () => {

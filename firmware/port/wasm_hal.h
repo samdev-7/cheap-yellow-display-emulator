@@ -11,6 +11,7 @@
 double wasm_hal_now_us(void);
 void wasm_hal_idle(uint32_t timeout_ms);
 void wasm_hal_background(void);
+void wasm_hal_vm_counters(const uint32_t *opcodes, const uint32_t *calls);
 
 void wasm_serial_write(const char *text, uint32_t len);
 uint32_t wasm_serial_available(void);
