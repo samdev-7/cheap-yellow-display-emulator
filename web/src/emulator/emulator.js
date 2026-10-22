@@ -1,5 +1,7 @@
 import { CTRL, SERIAL_SIZE, createShared, packOps, views } from './shared.js';
 
+const MIN_TOUCH_MS = 150;
+
 export class Emulator extends EventTarget {
     constructor({ firmwareUrl }) {
         super();
@@ -42,6 +44,22 @@ export class Emulator extends EventTarget {
             this.worker.terminate();
             this.worker = null;
         }
+    }
+
+    powerOff() {
+        this.stop();
+        const ctrl = this.ctrl;
+        for (const slot of [CTRL.DISPLAY_ON, CTRL.BACKLIGHT, CTRL.LED_RED, CTRL.LED_GREEN, CTRL.LED_BLUE]) {
+            Atomics.store(ctrl, slot, 0);
+        }
+        this.framebuffer.fill(0);
+        Atomics.add(ctrl, CTRL.FRAME, 1);
+        Atomics.add(ctrl, CTRL.OUTPUTS, 1);
+        this.emit('state', { running: false, message: 'Power off' });
+    }
+
+    get powered() {
+        return this.worker !== null;
     }
 
     reset(files) {
@@ -119,7 +137,21 @@ export class Emulator extends EventTarget {
         const ctrl = this.ctrl;
         Atomics.store(ctrl, CTRL.TOUCH_X, Math.round(x));
         Atomics.store(ctrl, CTRL.TOUCH_Y, Math.round(y));
-        Atomics.store(ctrl, CTRL.TOUCH_PRESSED, pressed ? 1 : 0);
+        clearTimeout(this.releaseTimer);
+        if (pressed) {
+            if (Atomics.load(ctrl, CTRL.TOUCH_PRESSED) === 0) {
+                this.touchStart = performance.now();
+            }
+            Atomics.store(ctrl, CTRL.TOUCH_PRESSED, 1);
+        } else {
+            const held = performance.now() - (this.touchStart ?? 0);
+            const release = () => Atomics.store(ctrl, CTRL.TOUCH_PRESSED, 0);
+            if (held >= MIN_TOUCH_MS) {
+                release();
+            } else {
+                this.releaseTimer = setTimeout(release, MIN_TOUCH_MS - held);
+            }
+        }
         this.wake();
     }
 

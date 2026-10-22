@@ -40,14 +40,19 @@ export function exampleFiles(id) {
 export class Project {
     constructor() {
         this.files = new Map(); // path -> Uint8Array
+        this.emptyFolders = new Set(); // Folders with nothing in them yet, like lib/ on a new board.
     }
 
     static async load() {
         const project = new Project();
         const saved = await get(STORE_KEY).catch(() => undefined);
-        if (saved && saved.length > 0) {
-            for (const { path, data } of saved) {
+        const files = Array.isArray(saved) ? saved : saved?.files;
+        if (files && files.length > 0) {
+            for (const { path, data } of files) {
                 project.files.set(path, data);
+            }
+            for (const path of saved.folders ?? []) {
+                project.emptyFolders.add(path);
             }
         } else {
             project.loadExample('hello');
@@ -56,12 +61,37 @@ export class Project {
     }
 
     async save() {
-        await set(STORE_KEY, this.list()).catch(() => {});
+        await set(STORE_KEY, { files: this.list(), folders: this.folders() }).catch(() => {});
+    }
+
+    folders() {
+        const all = new Set(this.emptyFolders);
+        for (const path of this.files.keys()) {
+            for (let i = path.indexOf('/', 1); i > 0; i = path.indexOf('/', i + 1)) {
+                all.add(path.slice(0, i));
+            }
+        }
+        return [...all].sort((a, b) => a.localeCompare(b));
+    }
+
+    isFolder(path) {
+        return this.folders().includes(path);
+    }
+
+    exists(path) {
+        return this.files.has(path) || this.isFolder(path);
+    }
+
+    mkdir(path) {
+        if (!this.exists(path)) {
+            this.emptyFolders.add(path);
+        }
     }
 
     loadExample(id) {
         const settings = this.files.get('/settings.toml');
         this.files.clear();
+        this.emptyFolders = new Set(['/lib']);
         this.files.set('/settings.toml', settings ?? encoder.encode(''));
         for (const file of libraryFiles()) {
             this.files.set(file.path, file.data);
@@ -94,27 +124,50 @@ export class Project {
     }
 
     writeText(path, text) {
-        this.files.set(path, encoder.encode(text));
+        this.write(path, encoder.encode(text));
     }
 
     write(path, data) {
         this.files.set(path, data);
+        this.emptyFolders.delete(path.slice(0, path.lastIndexOf('/')));
     }
 
     remove(path) {
+        const inside = (key) => key === path || key.startsWith(path + '/');
         for (const key of [...this.files.keys()]) {
-            if (key === path || key.startsWith(path + '/')) {
+            if (inside(key)) {
                 this.files.delete(key);
             }
         }
+        for (const key of [...this.emptyFolders]) {
+            if (inside(key)) {
+                this.emptyFolders.delete(key);
+            }
+        }
+        this.keepParent(path);
     }
 
     rename(from, to) {
+        const inside = (key) => key === from || key.startsWith(from + '/');
         for (const [key, data] of [...this.files.entries()]) {
-            if (key === from || key.startsWith(from + '/')) {
+            if (inside(key)) {
                 this.files.delete(key);
                 this.files.set(to + key.slice(from.length), data);
             }
+        }
+        for (const key of [...this.emptyFolders]) {
+            if (inside(key)) {
+                this.emptyFolders.delete(key);
+                this.emptyFolders.add(to + key.slice(from.length));
+            }
+        }
+        this.keepParent(from);
+    }
+
+    keepParent(path) {
+        const parent = path.slice(0, path.lastIndexOf('/'));
+        if (parent && !this.exists(parent)) {
+            this.emptyFolders.add(parent);
         }
     }
 }

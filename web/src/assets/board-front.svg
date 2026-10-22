@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="86.0mm" height="51.6mm" viewBox="0 0 86.0 51.6">
+<desc>ESP32-2432S028R Cheap Yellow Display, screen side</desc>
+<g id="breadboard">
+<rect x="0.00" y="15.90" width="6.80" height="18.20" rx="0" fill="#2e2e2e"/>
+<rect id="sd-slot" x="39.99" y="48.60" width="11.64" height="3.00" rx="0.4" fill="#2e2e2e"/>
+<path id="pcb" d="M 3.40 0.00 A 3.4 3.4 0 0 0 0.00 3.40 L 0.00 15.90 L 6.80 15.90 L 6.80 34.10 L 0.00 34.10 L 0.00 46.60 A 3.4 3.4 0 0 0 3.40 50.00 L 82.60 50.00 A 3.4 3.4 0 0 0 86.00 46.60 L 86.00 3.40 A 3.4 3.4 0 0 0 82.60 0.00 Z" fill="#ffd84a"/>
+<circle cx="4.00" cy="4.00" r="3.0" fill="#d9a900"/>
+<circle cx="4.00" cy="4.00" r="1.6" fill="#ffffff"/>
+<circle cx="4.00" cy="46.00" r="3.0" fill="#d9a900"/>
+<circle cx="4.00" cy="46.00" r="1.6" fill="#ffffff"/>
+<circle cx="82.00" cy="4.00" r="3.0" fill="#d9a900"/>
+<circle cx="82.00" cy="4.00" r="1.6" fill="#ffffff"/>
+<circle cx="82.00" cy="46.00" r="3.0" fill="#d9a900"/>
+<circle cx="82.00" cy="46.00" r="1.6" fill="#ffffff"/>
+<rect x="8.80" y="0.00" width="69.20" height="50.00" rx="0.4" fill="#d6d8da"/>
+<rect x="9.50" y="0.70" width="67.80" height="48.60" rx="0.3" fill="#2e3135"/>
+<rect id="screen" x="11.85" y="3.40" width="57.60" height="43.20" rx="0" fill="#a2a6ab"/>
+<rect id="ldr" x="2.79" y="34.67" width="2.80" height="3.60" rx="0.6" fill="#ffffff"/>
+<circle cx="4.19" cy="36.47" r="0.85" fill="#ff9a3c"/>
+<rect id="connector0pin" x="11.62" y="48.80" width="0.6" height="0.6" fill="none"/>
+<rect id="connector1pin" x="12.87" y="48.80" width="0.6" height="0.6" fill="none"/>
+<rect id="connector2pin" x="14.12" y="48.80" width="0.6" height="0.6" fill="none"/>
+<rect id="connector3pin" x="15.37" y="48.80" width="0.6" height="0.6" fill="none"/>
+<rect id="connector4pin" x="28.70" y="48.80" width="0.6" height="0.6" fill="none"/>
+<rect id="connector5pin" x="29.95" y="48.80" width="0.6" height="0.6" fill="none"/>
+<rect id="connector6pin" x="31.20" y="48.80" width="0.6" height="0.6" fill="none"/>
+<rect id="connector7pin" x="32.45" y="48.80" width="0.6" height="0.6" fill="none"/>
+<rect id="connector8pin" x="84.80" y="13.14" width="0.6" height="0.6" fill="none"/>
+<rect id="connector9pin" x="84.80" y="14.39" width="0.6" height="0.6" fill="none"/>
+<rect id="connector10pin" x="84.80" y="15.64" width="0.6" height="0.6" fill="none"/>
+<rect id="connector11pin" x="84.80" y="16.89" width="0.6" height="0.6" fill="none"/>
+<rect id="connector12pin" x="57.21" y="0.60" width="0.6" height="0.6" fill="none"/>
+<rect id="connector13pin" x="58.46" y="0.60" width="0.6" height="0.6" fill="none"/>
+</g>
+</svg>

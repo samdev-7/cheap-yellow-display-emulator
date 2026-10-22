@@ -12,8 +12,10 @@ import { FitAddon } from '@xterm/addon-fit';
 import JSZip from 'jszip';
 
 import { Emulator } from './emulator/emulator.js';
-import { SCREEN_HEIGHT, SCREEN_WIDTH } from './emulator/shared.js';
 import { EXAMPLES, Project, normalisePath } from './project.js';
+import { BoardView } from './ui/boardView.js';
+import { FileTree } from './ui/fileTree.js';
+import { initSplitters } from './ui/splitters.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -24,9 +26,100 @@ if (!crossOriginIsolated) {
 const project = await Project.load();
 const emulator = new Emulator({ firmwareUrl: `${import.meta.env.BASE_URL}firmware/circuitpython.mjs` });
 
-let synced = new Map();
+let syncedFiles = new Map();
+let syncedFolders = new Set();
 let openPath = '/code.py';
 const unsaved = new Set();
+
+initSplitters($('workspace'));
+
+const tree = new FileTree($('file-tree'), project, {
+    open: (path) => openFile(path),
+    openPath: () => openPath,
+    isUnsaved: (path) => unsaved.has(path),
+    notify: (message) => setStatus(message),
+    dropped: (folder, files) => addFiles(folder, files),
+    created: (path, kind) => {
+        if (kind === 'folder') {
+            project.mkdir(path);
+        } else {
+            project.writeText(path, '');
+            unsaved.add(path);
+        }
+        changed();
+        if (kind === 'file') {
+            openFile(path);
+        }
+    },
+    renamed: (from, to) => {
+        project.rename(from, to);
+        for (const path of [...unsaved]) {
+            if (path === from || path.startsWith(from + '/')) {
+                unsaved.delete(path);
+                unsaved.add(to + path.slice(from.length));
+            }
+        }
+        for (const [path, state] of [...editorStates]) {
+            if (path === from || path.startsWith(from + '/')) {
+                editorStates.delete(path);
+                editorStates.set(to + path.slice(from.length), state);
+            }
+        }
+        if (openPath === from || openPath.startsWith(from + '/')) {
+            openPath = to + openPath.slice(from.length);
+            reopen();
+        }
+        changed();
+    },
+    deleted: (path) => {
+        project.remove(path);
+        for (const key of [...unsaved]) {
+            if (key === path || key.startsWith(path + '/')) unsaved.delete(key);
+        }
+        for (const key of [...editorStates.keys()]) {
+            if (key === path || key.startsWith(path + '/')) editorStates.delete(key);
+        }
+        if (!project.has(openPath)) {
+            openPath = project.has('/code.py') ? '/code.py' : project.list()[0]?.path ?? '/code.py';
+            reopen();
+        }
+        changed();
+    },
+});
+
+function changed() {
+    scheduleLocalSave();
+    tree.render();
+}
+
+const AUTOSAVE_MS = 1000;
+let localSaveTimer = 0;
+let boardSaveTimer = 0;
+function scheduleLocalSave() {
+    clearTimeout(localSaveTimer);
+    localSaveTimer = setTimeout(() => project.save(), 300);
+    clearTimeout(boardSaveTimer);
+    boardSaveTimer = setTimeout(() => saveToBoard(), AUTOSAVE_MS);
+}
+
+$('new-file').onclick = () => tree.startCreate('file');
+$('new-folder').onclick = () => tree.startCreate('folder');
+$('upload').onclick = () => $('upload-input').click();
+$('upload-input').onchange = async (event) => {
+    await addFiles(tree.targetFolder(), [...event.target.files]);
+    event.target.value = '';
+};
+
+async function addFiles(folder, files) {
+    for (const file of files) {
+        const into = !folder && /\.mpy$/.test(file.name) ? '/lib' : folder;
+        const path = normalisePath(`${into}/${file.name}`);
+        if (!path) continue;
+        project.write(path, new Uint8Array(await file.arrayBuffer()));
+        unsaved.add(path);
+    }
+    changed();
+}
 
 const darkMode = window.matchMedia('(prefers-color-scheme: dark)').matches;
 const editorHost = $('editor');
@@ -38,13 +131,13 @@ function editorState(path, text) {
         basicSetup,
         indentUnit.of('    '),
         EditorState.tabSize.of(4),
-        keymap.of([{ key: 'Mod-s', preventDefault: true, run: () => (saveAndRun(), true) }]),
+        keymap.of([{ key: 'Mod-s', preventDefault: true, run: () => (run(), true) }]),
         EditorView.updateListener.of((update) => {
             if (update.docChanged) {
-                project.writeText(path, update.state.doc.toString());
-                if (!unsaved.has(path)) {
-                    unsaved.add(path);
-                    renderFiles();
+                project.writeText(openPath, update.state.doc.toString());
+                if (!unsaved.has(openPath)) {
+                    unsaved.add(openPath);
+                    tree.render();
                 }
                 scheduleLocalSave();
             }
@@ -60,152 +153,88 @@ function editorState(path, text) {
 }
 
 function openFile(path) {
-    if (view) {
+    if (view && project.has(openPath)) {
         editorStates.set(openPath, view.state);
     }
     openPath = path;
-    $('editor-title').textContent = path.slice(1);
-    const text = project.readText(path);
+    reopen();
+}
+
+function reopen() {
+    $('editor-title').textContent = openPath.slice(1);
+    const text = project.has(openPath) ? project.readText(openPath) : '';
     if (text === null) {
         view?.destroy();
         view = null;
         editorHost.innerHTML = '';
         const note = document.createElement('div');
         note.className = 'binary';
-        note.textContent = `${path.slice(1)} is a binary file (${project.read(path).length} bytes). It is copied to the board as is.`;
+        note.textContent = `${openPath.slice(1)} is a binary file (${project.read(openPath).length} bytes). It is copied to the board as is.`;
         editorHost.append(note);
     } else {
-        const state = editorStates.get(path) ?? editorState(path, text);
+        const state = editorStates.get(openPath) ?? editorState(openPath, text);
         if (view) {
             view.setState(state);
         } else {
             editorHost.innerHTML = '';
             view = new EditorView({ state, parent: editorHost });
         }
-        view.focus();
     }
-    renderFiles();
+    tree.reveal(openPath);
+    tree.render();
 }
-
-function renderFiles() {
-    const list = $('file-list');
-    list.innerHTML = '';
-    let folder = '';
-    for (const { path } of project.list()) {
-        const dir = path.slice(0, path.lastIndexOf('/'));
-        if (dir !== folder && dir) {
-            const heading = document.createElement('li');
-            heading.className = 'folder';
-            heading.textContent = dir.slice(1) + '/';
-            list.append(heading);
-        }
-        folder = dir;
-        const item = document.createElement('li');
-        const button = document.createElement('button');
-        const name = dir ? path.slice(dir.length + 1) : path.slice(1);
-        button.textContent = (dir ? '  ' : '') + name;
-        if (unsaved.has(path)) {
-            const mark = document.createElement('span');
-            mark.className = 'dirty';
-            mark.textContent = ' ●';
-            mark.title = 'Not yet saved to the board';
-            button.append(mark);
-        }
-        button.title = path.slice(1);
-        button.setAttribute('aria-current', path === openPath ? 'true' : 'false');
-        button.onclick = () => openFile(path);
-        item.append(button);
-        list.append(item);
-    }
-}
-
-let localSaveTimer = 0;
-function scheduleLocalSave() {
-    clearTimeout(localSaveTimer);
-    localSaveTimer = setTimeout(() => project.save(), 500);
-}
-
-$('new-file').onclick = () => {
-    const name = prompt('New file name (for example helpers.py or lib/mylib.py):', 'new.py');
-    const path = name && normalisePath(name);
-    if (!path) return;
-    if (!project.has(path)) {
-        project.writeText(path, '');
-        unsaved.add(path);
-        scheduleLocalSave();
-    }
-    openFile(path);
-};
-
-$('upload').onclick = () => $('upload-input').click();
-$('upload-input').onchange = async (event) => {
-    for (const file of event.target.files) {
-        const inLib = /\.mpy$/.test(file.name) ? '/lib/' : '/';
-        const path = normalisePath(inLib + file.name);
-        project.write(path, new Uint8Array(await file.arrayBuffer()));
-        unsaved.add(path);
-    }
-    event.target.value = '';
-    scheduleLocalSave();
-    renderFiles();
-};
-
-$('rename-file').onclick = () => {
-    const name = prompt('Rename to:', openPath.slice(1));
-    const path = name && normalisePath(name);
-    if (!path || path === openPath) return;
-    if (project.has(path)) {
-        alert(`${path.slice(1)} already exists.`);
-        return;
-    }
-    project.rename(openPath, path);
-    editorStates.delete(openPath);
-    unsaved.add(path);
-    unsaved.delete(openPath);
-    scheduleLocalSave();
-    view = null;
-    openFile(path);
-};
-
-$('delete-file').onclick = () => {
-    if (!confirm(`Delete ${openPath.slice(1)}?`)) return;
-    project.remove(openPath);
-    editorStates.delete(openPath);
-    unsaved.delete(openPath);
-    scheduleLocalSave();
-    view = null;
-    openFile(project.has('/code.py') ? '/code.py' : project.list()[0]?.path ?? '/code.py');
-};
 
 function boot() {
-    synced = new Map(project.list().map(({ path, data }) => [path, data]));
+    syncedFiles = new Map(project.list().map(({ path, data }) => [path, data]));
+    syncedFolders = new Set(project.folders());
     unsaved.clear();
-    renderFiles();
+    tree.render();
     emulator.start(project.list());
 }
 
-function saveAndRun() {
-    const ops = [];
-    for (const { path, data } of project.list()) {
-        if (synced.get(path) !== data) {
-            ops.push({ kind: 'write', path, data });
-        }
+function saveToBoard() {
+    clearTimeout(boardSaveTimer);
+    if (!emulator.powered) {
+        return false;
     }
-    for (const path of synced.keys()) {
-        if (!project.has(path)) {
+    const ops = [];
+    const folders = new Set(project.folders());
+    for (const path of syncedFolders) {
+        if (!folders.has(path)) ops.push({ kind: 'delete', path });
+    }
+    for (const path of syncedFiles.keys()) {
+        if (!project.has(path) && !ops.some((op) => path.startsWith(op.path + '/'))) {
             ops.push({ kind: 'delete', path });
         }
     }
-    synced = new Map(project.list().map(({ path, data }) => [path, data]));
+    for (const path of folders) {
+        if (!syncedFolders.has(path)) ops.push({ kind: 'mkdir', path });
+    }
+    for (const { path, data } of project.list()) {
+        if (syncedFiles.get(path) !== data) ops.push({ kind: 'write', path, data });
+    }
+    syncedFiles = new Map(project.list().map(({ path, data }) => [path, data]));
+    syncedFolders = folders;
     unsaved.clear();
-    renderFiles();
+    tree.render();
     project.save();
     if (ops.length === 0) {
-        emulator.sendSerial(new Uint8Array([0x03, 0x04]));
-        return;
+        return false;
     }
     setStatus('Saving to the board…');
     emulator.applyFiles(ops);
+    return true;
+}
+
+function run() {
+    if (!emulator.powered) {
+        project.save();
+        setPower(true);
+        return;
+    }
+    if (!saveToBoard()) {
+        emulator.sendSerial(new Uint8Array([0x03, 0x04]));
+    }
 }
 
 emulator.addEventListener('files-applied', (event) => {
@@ -220,79 +249,42 @@ emulator.addEventListener('files-applied', (event) => {
 });
 
 emulator.addEventListener('reset-requested', () => boot());
-
 emulator.addEventListener('state', (event) => setStatus(event.detail.message));
 
 function setStatus(text) {
     $('status').textContent = text;
 }
 
-$('run').onclick = () => saveAndRun();
+$('run').onclick = () => run();
 $('stop').onclick = () => emulator.interrupt();
 $('reset').onclick = () => boot();
-$('rst-button').onclick = () => boot();
 
-const bootButton = $('boot-button');
-const pressBoot = (pressed) => {
-    bootButton.classList.toggle('pressed', pressed);
-    emulator.setBootButton(pressed);
+const board = new BoardView($('board'), emulator, { onReset: () => boot() });
+
+$('flip').onclick = () => {
+    const back = board.flip();
+    $('flip').setAttribute('aria-pressed', String(back));
+    $('flip').title = back ? 'Show the front of the board' : 'Show the back of the board';
 };
-bootButton.addEventListener('pointerdown', () => pressBoot(true));
-bootButton.addEventListener('pointerup', () => pressBoot(false));
-bootButton.addEventListener('pointerleave', () => pressBoot(false));
 
-const light = $('light');
-const updateLight = () => emulator.setLightSensorMillivolts(50 + (1 - light.value / 100) * 1200);
-light.oninput = updateLight;
-updateLight();
-
-const canvas = $('screen');
-const touchAt = (event, pressed) => {
-    const rect = canvas.getBoundingClientRect();
-    const x = ((event.clientX - rect.left) / rect.width) * SCREEN_WIDTH;
-    const y = ((event.clientY - rect.top) / rect.height) * SCREEN_HEIGHT;
-    emulator.setTouch(pressed, Math.min(SCREEN_WIDTH - 1, Math.max(0, x)), Math.min(SCREEN_HEIGHT - 1, Math.max(0, y)));
-};
-let touching = false;
-canvas.addEventListener('pointerdown', (event) => {
-    touching = true;
-    canvas.setPointerCapture(event.pointerId);
-    touchAt(event, true);
-});
-canvas.addEventListener('pointermove', (event) => {
-    if (touching) touchAt(event, true);
-});
-const release = (event) => {
-    touching = false;
-    touchAt(event, false);
-};
-canvas.addEventListener('pointerup', release);
-canvas.addEventListener('pointercancel', release);
-
-const context = canvas.getContext('2d');
-const image = context.createImageData(SCREEN_WIDTH, SCREEN_HEIGHT);
-const led = $('led');
-const screenOff = $('screen-off');
-let lastFrame = -1;
-function render() {
-    const frame = emulator.frameCounter();
-    if (frame !== lastFrame) {
-        lastFrame = frame;
-        image.data.set(emulator.framebuffer);
-        context.putImageData(image, 0, 0);
-        const out = emulator.outputs();
-        const level = out.displayOn ? out.backlight : 0;
-        screenOff.style.opacity = String(1 - level);
-        const r = Math.round(out.red * 255);
-        const g = Math.round(out.green * 255);
-        const b = Math.round(out.blue * 255);
-        const lit = r + g + b > 0;
-        led.style.background = lit ? `rgb(${r} ${g} ${b})` : '#f6f3e6';
-        led.style.boxShadow = lit ? `0 0 10px 3px rgb(${r} ${g} ${b} / 0.8)` : 'none';
+function setPower(on) {
+    if (on) {
+        boot();
+    } else {
+        emulator.powerOff();
     }
-    requestAnimationFrame(render);
+    showPower();
 }
-requestAnimationFrame(render);
+
+function showPower() {
+    const on = emulator.powered;
+    $('power').setAttribute('aria-pressed', String(on));
+    $('power-label').textContent = on ? 'On' : 'Off';
+    $('stop').disabled = !on;
+    $('reset').disabled = !on;
+}
+
+$('power').onclick = () => setPower(!emulator.powered);
 
 const terminal = new Terminal({
     convertEol: false,
@@ -327,12 +319,16 @@ examples.onchange = () => {
     project.save();
     editorStates.clear();
     view = null;
-    openFile('/code.py');
-    saveAndRun();
+    openPath = '/code.py';
+    reopen();
+    saveToBoard();
 };
 
 $('download').onclick = async () => {
     const zip = new JSZip();
+    for (const path of project.folders()) {
+        zip.folder(path.slice(1));
+    }
     for (const { path, data } of project.list()) {
         zip.file(path.slice(1), data);
     }
@@ -344,9 +340,11 @@ $('download').onclick = async () => {
     URL.revokeObjectURL(link.href);
 };
 
-openFile(project.has('/code.py') ? '/code.py' : project.list()[0].path);
+openPath = project.has('/code.py') ? '/code.py' : project.list()[0].path;
+reopen();
 boot();
+showPower();
 
 if (import.meta.env.DEV) {
-    window.cyd = { emulator, terminal, project };
+    window.cyd = { emulator, terminal, project, tree, board };
 }
