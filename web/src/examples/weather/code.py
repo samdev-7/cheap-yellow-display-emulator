@@ -67,7 +67,7 @@ while True:
             observed,
         )
         print(STATION, temperature.text, details.text.replace("\n", " | "))
-    except (OSError, RuntimeError, ValueError, KeyError) as error:
+    except (OSError, RuntimeError, ValueError, KeyError, adafruit_requests.OutOfRetries) as error:
         details.text = "Couldn't fetch:\n" + str(error)
         print("Couldn't fetch:", error)
     time.sleep(600)

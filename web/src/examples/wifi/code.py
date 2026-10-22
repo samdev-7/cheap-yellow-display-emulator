@@ -72,6 +72,6 @@ while True:
         with requests.get("https://api.github.com/repos/adafruit/circuitpython") as response:
             stars = response.json()["stargazers_count"]
         show("CircuitPython has\n{:,} stars\non GitHub\n\n".format(stars) + clock)
-    except (OSError, RuntimeError, ValueError) as error:
+    except (OSError, RuntimeError, ValueError, adafruit_requests.OutOfRetries) as error:
         show("Couldn't fetch:\n" + str(error) + "\n\n" + clock)
     time.sleep(60)
