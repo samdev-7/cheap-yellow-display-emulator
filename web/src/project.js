@@ -25,6 +25,7 @@ function upgrade(saved) {
             ...board,
             ...saved.board,
             card: { ...board.card, ...saved.board?.card },
+            wifi: { ...board.wifi, ...saved.board?.wifi },
         },
     };
 }
@@ -45,6 +46,8 @@ export const EXAMPLES = [
     { id: 'light-sensor', title: 'Light sensor' },
     { id: 'boot-button', title: 'BOOT button and backlight' },
     { id: 'sd-card', title: 'microSD card' },
+    { id: 'wifi', title: 'Wi-Fi and the internet' },
+    { id: 'weather', title: 'Weather' },
 ];
 
 export function libraryFiles() {
@@ -69,7 +72,12 @@ export function exampleFiles(id) {
 }
 
 export function defaultBoardState() {
-    return { side: 'front', light: 70, card: { inserted: false, sizeGB: 8, sectors: 0, blocks: new Map() } };
+    return {
+        side: 'front',
+        light: 70,
+        card: { inserted: false, sizeGB: 8, sectors: 0, blocks: new Map() },
+        wifi: { inRange: true, passwordAccepted: true, internet: true, connectInstantly: true },
+    };
 }
 
 export class Project {

@@ -21,6 +21,8 @@ export const CTRL = {
     OUTPUTS: 16, // Bumped by the worker whenever an LED or the backlight changes.
     SD_INSERTED: 17, // 1 while a microSD card is in the slot.
     SD_GENERATION: 18, // Bumped by the page when it puts a new card image in the SD area.
+    WIFI_MODE: 19, // Wi-Fi conditions from the board menu (network.js WIFI_MODE bits).
+    WIFI_DROP: 20, // Bumped by the page to drop the board's Wi-Fi connection.
 };
 
 const CTRL_BYTES = 32 * 4;

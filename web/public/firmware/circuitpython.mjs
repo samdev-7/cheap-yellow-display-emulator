@@ -213,7 +213,7 @@ function updateMemoryViews() {
   
   Module['HEAPU8'] = HEAPU8 = new Uint8Array(b);
   
-  
+  HEAP32 = new Int32Array(b);
   HEAPU32 = new Uint32Array(b);
   
   
@@ -666,6 +666,52 @@ async function createWasm() {
   var _wasm_i2c_write = (scl, addr, ptr, len) =>
           Module.hal.i2cWrite(scl, addr, ptr ? HEAPU8.subarray(ptr, ptr + len) : new Uint8Array(0));
 
+  var _wasm_net_close = (id) => Module.hal.net.close(id);
+
+  var _wasm_net_connect = (id, ip, port) => Module.hal.net.connect(id, ip >>> 0, port);
+
+  
+  
+  var _wasm_net_lookup = (hostPtr, len, ipPtr) => {
+          const { result, ip } = Module.hal.net.lookup(UTF8ToString(hostPtr, len));
+          if (result === 0) {
+              HEAPU32[ipPtr >> 2] = ip;
+          }
+          return result;
+      };
+
+  var _wasm_net_readable = (id) => (Module.hal.net.readable(id) ? 1 : 0);
+
+  var _wasm_net_recv = (id, ptr, len) => {
+          const { result, bytes } = Module.hal.net.recv(id, len);
+          if (result > 0) {
+              HEAPU8.set(bytes, ptr);
+          }
+          return result;
+      };
+
+  
+  var _wasm_net_recvfrom = (id, ptr, len, ipPtr, portPtr) => {
+          const { result, bytes, from, port } = Module.hal.net.recv(id, len);
+          if (result > 0) {
+              HEAPU8.set(bytes, ptr);
+              HEAPU32[ipPtr >> 2] = from;
+              HEAPU32[portPtr >> 2] = port;
+          }
+          return result;
+      };
+
+  var _wasm_net_reset = () => Module.hal.net.reset();
+
+  var _wasm_net_send = (id, ptr, len) => Module.hal.net.send(id, HEAPU8.slice(ptr, ptr + len));
+
+  var _wasm_net_sendto = (id, ip, port, ptr, len) => Module.hal.net.sendto(id, ip >>> 0, port, HEAPU8.slice(ptr, ptr + len));
+
+  
+  var _wasm_net_set_tls = (id, ptr, len) => Module.hal.net.setTls(id, len ? UTF8ToString(ptr, len) : '');
+
+  var _wasm_net_socket = (udp) => Module.hal.net.socket(udp !== 0);
+
   var _wasm_pwm_set = (pin, duty, frequency) => Module.hal.pwmSet(pin, duty, frequency >>> 0);
 
   var _wasm_random_fill = (ptr, len) => {
@@ -696,6 +742,38 @@ async function createWasm() {
               len,
               writeValue,
           );
+
+  
+  /** @type {!Int32Array} */
+  var HEAP32;
+  var writeNetwork = (network, ssidPtr, infoPtr) => {
+          stringToUTF8(network.ssid, ssidPtr, 33);
+          HEAP32[infoPtr >> 2] = network.rssi;
+          HEAP32[(infoPtr >> 2) + 1] = network.channel;
+          HEAP32[(infoPtr >> 2) + 2] = network.authmode === 'open' ? 0 : 1;
+      };
+  var _wasm_wifi_ap_info = (ssidPtr, infoPtr) => writeNetwork(Module.hal.net.accessPoint(), ssidPtr, infoPtr);
+
+  
+  var _wasm_wifi_connect = (ptr, len) => Module.hal.net.join(UTF8ToString(ptr, len));
+
+  var _wasm_wifi_connected = () => (Module.hal.net.isConnected() ? 1 : 0);
+
+  var _wasm_wifi_disconnect = () => Module.hal.net.leave();
+
+  var _wasm_wifi_real_timing = () => (Module.hal.net.realTiming() ? 1 : 0);
+
+  var _wasm_wifi_scan = (index, ssidPtr, infoPtr) => {
+          const network = Module.hal.net.scan()[index];
+          if (!network) {
+              return 0;
+          }
+          writeNetwork(network, ssidPtr, infoPtr);
+          return 1;
+      };
+
+  
+  var _wasm_wifi_set_home = (ptr, len) => Module.hal.net.setHome(UTF8ToString(ptr, len));
 
   
   var runtimeKeepaliveCounter = 0;
@@ -822,6 +900,28 @@ var wasmImports = {
   /** @export */
   wasm_i2c_write: _wasm_i2c_write,
   /** @export */
+  wasm_net_close: _wasm_net_close,
+  /** @export */
+  wasm_net_connect: _wasm_net_connect,
+  /** @export */
+  wasm_net_lookup: _wasm_net_lookup,
+  /** @export */
+  wasm_net_readable: _wasm_net_readable,
+  /** @export */
+  wasm_net_recv: _wasm_net_recv,
+  /** @export */
+  wasm_net_recvfrom: _wasm_net_recvfrom,
+  /** @export */
+  wasm_net_reset: _wasm_net_reset,
+  /** @export */
+  wasm_net_send: _wasm_net_send,
+  /** @export */
+  wasm_net_sendto: _wasm_net_sendto,
+  /** @export */
+  wasm_net_set_tls: _wasm_net_set_tls,
+  /** @export */
+  wasm_net_socket: _wasm_net_socket,
+  /** @export */
   wasm_pwm_set: _wasm_pwm_set,
   /** @export */
   wasm_random_fill: _wasm_random_fill,
@@ -836,7 +936,21 @@ var wasmImports = {
   /** @export */
   wasm_spi_config: _wasm_spi_config,
   /** @export */
-  wasm_spi_transfer: _wasm_spi_transfer
+  wasm_spi_transfer: _wasm_spi_transfer,
+  /** @export */
+  wasm_wifi_ap_info: _wasm_wifi_ap_info,
+  /** @export */
+  wasm_wifi_connect: _wasm_wifi_connect,
+  /** @export */
+  wasm_wifi_connected: _wasm_wifi_connected,
+  /** @export */
+  wasm_wifi_disconnect: _wasm_wifi_disconnect,
+  /** @export */
+  wasm_wifi_real_timing: _wasm_wifi_real_timing,
+  /** @export */
+  wasm_wifi_scan: _wasm_wifi_scan,
+  /** @export */
+  wasm_wifi_set_home: _wasm_wifi_set_home
 };
 
 

@@ -15,6 +15,8 @@
 #include "shared/runtime/interrupt_char.h"
 #include "common-hal/microcontroller/Pin.h"
 #include "shared-bindings/microcontroller/__init__.h"
+#include "shared-bindings/rtc/__init__.h"
+#include "shared-bindings/socketpool/__init__.h"
 
 #include "background.h"
 #include "wasm_hal.h"
@@ -34,6 +36,14 @@ safe_mode_t port_init(void) {
 
 void reset_port(void) {
     wasm_fs_apply_pending(false);
+
+    #if CIRCUITPY_RTC
+    rtc_reset();
+    #endif
+
+    #if CIRCUITPY_SOCKETPOOL
+    socketpool_user_reset();
+    #endif
 }
 
 void reset_to_bootloader(void) {

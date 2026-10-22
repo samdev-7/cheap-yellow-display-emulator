@@ -2,6 +2,7 @@ import { readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
 import { basename, join } from 'node:path';
 import { deflateSync } from 'node:zlib';
 import { parseArgs } from 'node:util';
+import { Worker } from 'node:worker_threads';
 
 import { createShared, views, CTRL, SCREEN_WIDTH, SCREEN_HEIGHT } from '../../web/src/emulator/shared.js';
 import { createHal } from '../../web/src/emulator/hal.js';
@@ -18,6 +19,7 @@ const { values, positionals } = parseArgs({
         lib: { type: 'string', multiple: true, default: [] },
         card: { type: 'string' },
         'blank-card': { type: 'string' },
+        'wifi-mode': { type: 'string', default: '0' },
     },
 });
 
@@ -57,6 +59,7 @@ if (values.touch) {
     Atomics.store(shared.ctrl, CTRL.TOUCH_PRESSED, 1);
 }
 Atomics.store(shared.ctrl, CTRL.LIGHT_MV, 300);
+Atomics.store(shared.ctrl, CTRL.WIFI_MODE, Number(values['wifi-mode']));
 
 const finish = () => {
     hal.flush();
@@ -76,9 +79,14 @@ if (values.card) card = formattedCard(Number(values.card));
 if (values['blank-card']) card = blankCard(Number(values['blank-card']));
 if (card) Atomics.store(shared.ctrl, CTRL.SD_INSERTED, 1);
 
+const network = new Worker(new URL('./net-worker.mjs', import.meta.url), { workerData: { ctrl: shared.ctrl } });
+network.unref();
+
 const hal = createHal(shared, files, (message) => {
     if (message.type === 'serial') {
         process.stdout.write(decoder.decode(message.bytes, { stream: true }));
+    } else if (message.type.startsWith('net')) {
+        network.postMessage(message);
     }
 }, card);
 

@@ -31,6 +31,7 @@ export class Emulator extends EventTarget {
         }
         this.queuedOps = [];
         this.mailboxBusy = false;
+        this.network?.reset();
         this.worker = new Worker(new URL('./worker.js', import.meta.url), { type: 'module' });
         this.worker.onmessage = (event) => this.onWorkerMessage(event.data);
         this.worker.onerror = (event) => {
@@ -94,6 +95,7 @@ export class Emulator extends EventTarget {
                 this.emit('state', { running: false, message: `CircuitPython stopped: ${message.message}` });
                 break;
             default:
+                this.network?.handle(message);
                 break;
         }
     }
@@ -158,6 +160,16 @@ export class Emulator extends EventTarget {
                 this.releaseTimer = setTimeout(release, MIN_TOUCH_MS - held);
             }
         }
+        this.wake();
+    }
+
+    setWifiMode(mode) {
+        Atomics.store(this.ctrl, CTRL.WIFI_MODE, mode);
+        this.wake();
+    }
+
+    dropWifi() {
+        Atomics.add(this.ctrl, CTRL.WIFI_DROP, 1);
         this.wake();
     }
 

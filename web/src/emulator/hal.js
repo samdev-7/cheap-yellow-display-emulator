@@ -1,5 +1,6 @@
 import { CTRL, SERIAL_SIZE, unpackCard, unpackOps } from './shared.js';
 import { CYDBoard } from './board.js';
+import { Network } from './network.js';
 
 const OUTPUT_FLUSH_MS = 16;
 const OUTPUT_FLUSH_BYTES = 4096;
@@ -158,6 +159,8 @@ export function createHal(shared, files, post, card) {
         },
         flashLoad: () => {},
         flashDirty: () => {},
+
+        net: new Network(ctrl, post),
     };
 
     hal.flush = () => {

@@ -62,6 +62,66 @@ addToLibrary({
     },
     wasm_fs_ops_done: (errors) => Module.hal.fsOpsDone(errors),
 
+    wasm_wifi_set_home__deps: ['$UTF8ToString'],
+    wasm_wifi_set_home: (ptr, len) => Module.hal.net.setHome(UTF8ToString(ptr, len)),
+    wasm_wifi_connect__deps: ['$UTF8ToString'],
+    wasm_wifi_connect: (ptr, len) => Module.hal.net.join(UTF8ToString(ptr, len)),
+    wasm_wifi_disconnect: () => Module.hal.net.leave(),
+    wasm_wifi_real_timing: () => (Module.hal.net.realTiming() ? 1 : 0),
+    wasm_wifi_connected: () => (Module.hal.net.isConnected() ? 1 : 0),
+    wasm_wifi_scan__deps: ['$writeNetwork'],
+    wasm_wifi_scan: (index, ssidPtr, infoPtr) => {
+        const network = Module.hal.net.scan()[index];
+        if (!network) {
+            return 0;
+        }
+        writeNetwork(network, ssidPtr, infoPtr);
+        return 1;
+    },
+    wasm_wifi_ap_info__deps: ['$writeNetwork'],
+    wasm_wifi_ap_info: (ssidPtr, infoPtr) => writeNetwork(Module.hal.net.accessPoint(), ssidPtr, infoPtr),
+    $writeNetwork__deps: ['$stringToUTF8'],
+    $writeNetwork: (network, ssidPtr, infoPtr) => {
+        stringToUTF8(network.ssid, ssidPtr, 33);
+        HEAP32[infoPtr >> 2] = network.rssi;
+        HEAP32[(infoPtr >> 2) + 1] = network.channel;
+        HEAP32[(infoPtr >> 2) + 2] = network.authmode === 'open' ? 0 : 1;
+    },
+
+    wasm_net_lookup__deps: ['$UTF8ToString'],
+    wasm_net_lookup: (hostPtr, len, ipPtr) => {
+        const { result, ip } = Module.hal.net.lookup(UTF8ToString(hostPtr, len));
+        if (result === 0) {
+            HEAPU32[ipPtr >> 2] = ip;
+        }
+        return result;
+    },
+    wasm_net_socket: (udp) => Module.hal.net.socket(udp !== 0),
+    wasm_net_set_tls__deps: ['$UTF8ToString'],
+    wasm_net_set_tls: (id, ptr, len) => Module.hal.net.setTls(id, len ? UTF8ToString(ptr, len) : ''),
+    wasm_net_connect: (id, ip, port) => Module.hal.net.connect(id, ip >>> 0, port),
+    wasm_net_send: (id, ptr, len) => Module.hal.net.send(id, HEAPU8.slice(ptr, ptr + len)),
+    wasm_net_recv: (id, ptr, len) => {
+        const { result, bytes } = Module.hal.net.recv(id, len);
+        if (result > 0) {
+            HEAPU8.set(bytes, ptr);
+        }
+        return result;
+    },
+    wasm_net_sendto: (id, ip, port, ptr, len) => Module.hal.net.sendto(id, ip >>> 0, port, HEAPU8.slice(ptr, ptr + len)),
+    wasm_net_recvfrom: (id, ptr, len, ipPtr, portPtr) => {
+        const { result, bytes, from, port } = Module.hal.net.recv(id, len);
+        if (result > 0) {
+            HEAPU8.set(bytes, ptr);
+            HEAPU32[ipPtr >> 2] = from;
+            HEAPU32[portPtr >> 2] = port;
+        }
+        return result;
+    },
+    wasm_net_readable: (id) => (Module.hal.net.readable(id) ? 1 : 0),
+    wasm_net_close: (id) => Module.hal.net.close(id),
+    wasm_net_reset: () => Module.hal.net.reset(),
+
     wasm_flash_load: (ptr, len) => Module.hal.flashLoad(HEAPU8.subarray(ptr, ptr + len)),
     wasm_flash_dirty: (offset, len) => Module.hal.flashDirty(offset, len),
 });

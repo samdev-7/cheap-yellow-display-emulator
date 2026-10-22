@@ -41,4 +41,25 @@ void wasm_fs_ops_done(int errors);
 void wasm_flash_load(uint8_t *flash, uint32_t len);
 void wasm_flash_dirty(uint32_t offset, uint32_t len);
 
+void wasm_wifi_set_home(const char *ssid, uint32_t len);
+int wasm_wifi_connect(const char *ssid, uint32_t len);
+void wasm_wifi_disconnect(void);
+bool wasm_wifi_real_timing(void);
+bool wasm_wifi_connected(void);
+int wasm_wifi_scan(uint32_t index, char *ssid, int32_t *info);
+void wasm_wifi_ap_info(char *ssid, int32_t *info);
+
+#define WASM_NET_DNS_NOT_FOUND 1000
+int wasm_net_lookup(const char *host, uint32_t len, uint32_t *ip);
+int wasm_net_socket(bool udp);
+int wasm_net_set_tls(int id, const char *hostname, uint32_t len);
+int wasm_net_connect(int id, uint32_t ip, uint32_t port);
+int wasm_net_send(int id, const uint8_t *buf, uint32_t len);
+int wasm_net_recv(int id, uint8_t *buf, uint32_t len);
+int wasm_net_sendto(int id, uint32_t ip, uint32_t port, const uint8_t *buf, uint32_t len);
+int wasm_net_recvfrom(int id, uint8_t *buf, uint32_t len, uint32_t *ip, uint32_t *port);
+bool wasm_net_readable(int id);
+void wasm_net_close(int id);
+void wasm_net_reset(void);
+
 void wasm_hal_reset(int to_bootloader);

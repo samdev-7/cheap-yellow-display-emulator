@@ -600,7 +600,9 @@ select {
 }
 
 .menu button {
-    display: block;
+    display: flex;
+    align-items: center;
+    gap: 12px;
     width: 100%;
     text-align: left;
     border: none;
@@ -635,8 +637,34 @@ select {
 }
 
 .menu-check {
-    display: inline-block;
+    flex: none;
     width: 1.2em;
+    margin-right: -12px;
+}
+
+.menu-label {
+    flex: 1;
+}
+
+.menu-detail {
+    color: var(--muted);
+    font-size: 12px;
+}
+
+.menu-arrow {
+    color: var(--muted);
+    margin-left: -6px;
+}
+
+.menu .menu-back {
+    font-weight: 600;
+}
+
+.menu .menu-back::before {
+    content: '‹';
+    margin-right: 6px;
+    color: var(--muted);
+    font-weight: 400;
 }
 
 .menu-separator {

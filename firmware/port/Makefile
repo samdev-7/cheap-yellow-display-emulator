@@ -40,6 +40,7 @@ endif
 CLANG_CFLAGS = $(filter-out -fsingle-precision-constant -Wimplicit-fallthrough=2 --param max-inline-insns-single=500 -Wno-endif-labels,$(BASE_CFLAGS))
 
 CFLAGS += $(INC) -std=gnu11 $(CLANG_CFLAGS) $(COPT)
+CFLAGS += -Xclang -no-enable-noundef-analysis
 CFLAGS += -DMICROPY_GCREGS_SETJMP=1
 CFLAGS += -sSUPPORT_LONGJMP=wasm
 CFLAGS += \

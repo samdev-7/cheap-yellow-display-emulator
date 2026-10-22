@@ -15,6 +15,8 @@ import { Emulator } from './emulator/emulator.js';
 import { CARD_SIZES_GB, blankCard, formattedCard } from './emulator/sdcard.js';
 import { DEFAULT_NAME, EXAMPLES, ProjectStore, normalisePath } from './project.js';
 import { NetworkProxy } from './net/proxy.js';
+import { NetworkBridge } from './net/network.js';
+import { WIFI_MODE } from './emulator/network.js';
 import { BoardView } from './ui/boardView.js';
 import { FileTree } from './ui/fileTree.js';
 import { Menu } from './ui/menu.js';
@@ -310,14 +312,64 @@ emulator.addEventListener('sd-blocks', (event) => {
     scheduleSave();
 });
 
+const proxy = new NetworkProxy();
+emulator.network = new NetworkBridge({ proxy, wake: () => emulator.wake(), notice: (text) => setStatus(text) });
+
+function showWifi() {
+    const wifi = project.board.wifi;
+    emulator.setWifiMode(
+        (wifi.inRange ? 0 : WIFI_MODE.NO_NETWORKS) |
+            (wifi.passwordAccepted ? 0 : WIFI_MODE.WRONG_PASSWORD) |
+            (wifi.internet ? 0 : WIFI_MODE.NO_INTERNET) |
+            (wifi.connectInstantly ? 0 : WIFI_MODE.REAL_TIMING),
+    );
+}
+
+function toggleWifi(setting) {
+    project.board.wifi[setting] = !project.board.wifi[setting];
+    showWifi();
+    scheduleSave();
+}
+
 const boardMenu = new Menu();
 $('board-more').onclick = () => {
-    const card = project.board.card;
     boardMenu.open($('board-more'), [
-        { heading: `microSD card · ${card.inserted ? 'in the slot' : 'not inserted'}` },
+        { label: 'Wi-Fi', detail: wifiSummary(), submenu: wifiItems },
+        { label: 'microSD card', detail: cardSummary(), submenu: cardItems },
+    ]);
+};
+
+function wifiSummary() {
+    const wifi = project.board.wifi;
+    if (!wifi.inRange) return 'No networks';
+    if (!wifi.passwordAccepted) return 'Wrong password';
+    if (!wifi.internet) return 'No internet';
+    return 'Normal';
+}
+
+function wifiItems() {
+    const wifi = project.board.wifi;
+    return [
+        { label: 'Networks in range', checked: wifi.inRange, run: () => toggleWifi('inRange') },
+        { label: 'Password accepted', checked: wifi.passwordAccepted, run: () => toggleWifi('passwordAccepted') },
+        { label: 'Internet access', checked: wifi.internet, run: () => toggleWifi('internet') },
+        { label: 'Connect instantly', checked: wifi.connectInstantly, run: () => toggleWifi('connectInstantly') },
+        null,
+        { label: 'Disconnect now', disabled: !emulator.powered, run: () => emulator.dropWifi() },
+    ];
+}
+
+function cardSummary() {
+    const card = project.board.card;
+    return card.inserted ? `${card.sizeGB} GB, inserted` : 'Not inserted';
+}
+
+function cardItems() {
+    const card = project.board.card;
+    return [
         { label: card.inserted ? 'Eject card' : 'Insert card', run: () => setCardInserted(!card.inserted) },
         null,
-        { heading: 'Card size' },
+        { heading: 'Size' },
         ...CARD_SIZES_GB.map((sizeGB) => ({
             label: `${sizeGB} GB`,
             checked: card.sizeGB === sizeGB,
@@ -337,8 +389,8 @@ $('board-more').onclick = () => {
             danger: true,
             run: () => replaceCard(card.sizeGB, false, 'Erase the card completely, leaving it unformatted?'),
         },
-    ]);
-};
+    ];
+}
 
 const terminal = new Terminal({
     convertEol: false,
@@ -394,6 +446,7 @@ function showProject() {
     showSide();
     board.setLight(project.board.light);
     showCard();
+    showWifi();
     boardFiles = null;
     terminal.clear();
     if (!switchedOff) {
@@ -511,6 +564,5 @@ $('download').onclick = async () => {
 showProject();
 
 if (import.meta.env.DEV) {
-    const network = new NetworkProxy();
-    window.cyd = { emulator, terminal, store, tree, board, network, get project() { return project; } };
+    window.cyd = { emulator, terminal, store, tree, board, proxy, get project() { return project; } };
 }
