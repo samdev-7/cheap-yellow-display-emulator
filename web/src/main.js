@@ -47,6 +47,12 @@ function saveNow() {
     return store.save(project);
 }
 
+function keep() {
+    if (!project.draft) return;
+    store.add(project);
+    showName();
+}
+
 const tree = new FileTree($('file-tree'), project, {
     open: (path) => openFile(path),
     openPath: () => openPath,
@@ -102,6 +108,7 @@ const tree = new FileTree($('file-tree'), project, {
 });
 
 function changed() {
+    keep();
     scheduleSave();
     tree.render();
 }
@@ -143,6 +150,7 @@ function editorState(path, text) {
         EditorView.updateListener.of((update) => {
             if (update.docChanged) {
                 project.writeText(openPath, update.state.doc.toString());
+                keep();
                 if (!unsaved.has(openPath)) {
                     unsaved.add(openPath);
                     tree.render();
@@ -375,8 +383,7 @@ function showProject() {
     if (project.newerFormat || store.newerFormat) {
         setStatus('Saved by a newer version of this editor: changes here won\'t be saved.');
     }
-    nameInput.value = project.name;
-    document.title = `${project.name} · CYD CircuitPython`;
+    showName();
     tree.project = project;
     editorStates.clear();
     view = null;
@@ -392,6 +399,11 @@ function showProject() {
     }
 }
 
+function showName() {
+    nameInput.value = project.name;
+    document.title = `${project.name} · CYD CircuitPython`;
+}
+
 async function switchTo(open) {
     await saveNow();
     project = await open();
@@ -405,8 +417,12 @@ nameInput.addEventListener('change', () => {
         return;
     }
     project.name = name;
-    document.title = `${project.name} · CYD CircuitPython`;
-    saveNow();
+    if (project.draft) {
+        keep();
+    } else {
+        showName();
+        saveNow();
+    }
 });
 nameInput.addEventListener('keydown', (event) => {
     if (event.key === 'Enter') {
@@ -416,6 +432,29 @@ nameInput.addEventListener('keydown', (event) => {
         nameInput.blur();
     }
 });
+
+function closeItem() {
+    return { label: 'Close this example', run: () => switchTo(() => store.openCurrent()) };
+}
+
+function deleteItem() {
+    return {
+        label: 'Delete this project',
+        danger: true,
+        run: async () => {
+            if (!confirm(`Delete "${project.name}" and its files?`)) return;
+            clearTimeout(saveTimer);
+            await store.remove(project.id);
+            if (store.projects.length === 0) {
+                project = store.newProject(DEFAULT_NAME);
+                await store.add(project);
+            } else {
+                project = await store.open(store.projects[0].id);
+            }
+            showProject();
+        },
+    };
+}
 
 const projectMenu = new Menu();
 $('project-menu').onclick = () => {
@@ -439,30 +478,10 @@ $('project-menu').onclick = () => {
         { heading: 'Examples' },
         ...EXAMPLES.map((example) => ({
             label: example.title,
-            run: () =>
-                switchTo(async () => {
-                    const created = store.newProject(example.title, example.id);
-                    await store.add(created);
-                    return created;
-                }),
+            run: () => switchTo(async () => store.exampleDraft(example)),
         })),
         null,
-        {
-            label: 'Delete this project',
-            danger: true,
-            run: async () => {
-                if (!confirm(`Delete "${project.name}" and its files?`)) return;
-                clearTimeout(saveTimer);
-                await store.remove(project.id);
-                if (store.projects.length === 0) {
-                    project = store.newProject(DEFAULT_NAME);
-                    await store.add(project);
-                } else {
-                    project = await store.open(store.projects[0].id);
-                }
-                showProject();
-            },
-        },
+        project.draft ? closeItem() : deleteItem(),
     ]);
 };
 

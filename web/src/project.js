@@ -1,6 +1,7 @@
 import { del, get, set } from 'idb-keyval';
 
 import settingsTemplate from './examples/settings.toml?raw';
+import starterCode from './templates/code.py?raw';
 
 //
 export const FORMAT_VERSION = 1;
@@ -81,13 +82,21 @@ export class Project {
     }
 
     static fromExample(id, name, exampleId) {
+        return Project.withFiles(id, name, exampleFiles(exampleId));
+    }
+
+    static starter(id, name) {
+        return Project.withFiles(id, name, [{ path: '/code.py', data: encoder.encode(starterCode) }]);
+    }
+
+    static withFiles(id, name, files) {
         const project = new Project(id, name);
         project.emptyFolders.add('/lib');
         project.files.set('/settings.toml', encoder.encode(settingsTemplate));
         for (const file of libraryFiles()) {
             project.files.set(file.path, file.data);
         }
-        for (const file of exampleFiles(exampleId)) {
+        for (const file of files) {
             project.files.set(file.path, file.data);
         }
         return project;
@@ -220,16 +229,19 @@ export class ProjectStore {
     constructor() {
         this.projects = []; // [{ id, name }], in the order they were made.
         this.currentId = null;
+        this.seeded = false;
     }
 
     static async load() {
         const store = new ProjectStore();
         const index = await get(INDEX_KEY).catch(() => undefined);
-        if (index && index.projects?.length > 0) {
-            store.projects = index.projects;
+        if (index) {
+            store.projects = index.projects ?? [];
             store.currentId = index.currentId;
+            store.seeded = index.seeded ?? true;
             store.newerFormat = (index.version ?? 1) > FORMAT_VERSION;
-        } else {
+        }
+        if (store.projects.length === 0) {
             await store.migrate();
         }
         return store;
@@ -245,9 +257,12 @@ export class ProjectStore {
             if (oldCard) {
                 project.board.card = oldCard;
             }
-        } else {
+        } else if (!this.seeded) {
             project = Project.fromExample(newId(), DEFAULT_NAME, DEFAULT_EXAMPLE);
+        } else {
+            project = Project.starter(newId(), DEFAULT_NAME);
         }
+        this.seeded = true;
         await this.add(project);
     }
 
@@ -256,7 +271,7 @@ export class ProjectStore {
         this.currentId = id;
         await this.saveIndex();
         if (!saved) {
-            return Project.fromExample(id, this.nameOf(id) ?? DEFAULT_NAME, DEFAULT_EXAMPLE);
+            return Project.starter(id, this.nameOf(id) ?? DEFAULT_NAME);
         }
         return Project.fromSaved(id, saved);
     }
@@ -267,13 +282,15 @@ export class ProjectStore {
     }
 
     async add(project) {
+        project.draft = false;
+        project.name = this.uniqueName(project.name);
         this.projects.push({ id: project.id, name: project.name });
         this.currentId = project.id;
         await this.save(project);
     }
 
     async save(project) {
-        if (project.newerFormat) {
+        if (project.newerFormat || project.draft) {
             return;
         }
         const entry = this.projects.find((p) => p.id === project.id);
@@ -293,7 +310,12 @@ export class ProjectStore {
         if (this.newerFormat) {
             return Promise.resolve();
         }
-        return set(INDEX_KEY, { version: FORMAT_VERSION, projects: this.projects, currentId: this.currentId }).catch(() => {});
+        return set(INDEX_KEY, {
+            version: FORMAT_VERSION,
+            projects: this.projects,
+            currentId: this.currentId,
+            seeded: this.seeded,
+        }).catch(() => {});
     }
 
     nameOf(id) {
@@ -303,13 +325,19 @@ export class ProjectStore {
     uniqueName(base) {
         const names = new Set(this.projects.map((p) => p.name));
         if (!names.has(base)) return base;
-        for (let n = 2; ; n++) {
-            if (!names.has(`${base} ${n}`)) return `${base} ${n}`;
+        for (let n = 1; ; n++) {
+            if (!names.has(`${base} [${n}]`)) return `${base} [${n}]`;
         }
     }
 
-    newProject(name, exampleId = DEFAULT_EXAMPLE) {
-        return Project.fromExample(newId(), this.uniqueName(name), exampleId);
+    newProject(name) {
+        return Project.starter(newId(), this.uniqueName(name));
+    }
+
+    exampleDraft(example) {
+        const project = Project.fromExample(newId(), example.title, example.id);
+        project.draft = true;
+        return project;
     }
 }
 

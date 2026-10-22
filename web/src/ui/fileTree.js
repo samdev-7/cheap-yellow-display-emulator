@@ -88,14 +88,11 @@ export class FileTree {
     }
 
     move(from, folder) {
-        const to = `${folder}/${baseName(from)}`;
-        if (to === from) return null;
+        if (`${folder}/${baseName(from)}` === from) return null;
         if (folder === from || folder.startsWith(from + '/')) {
             return `Can't move ${baseName(from)} into itself.`;
         }
-        if (this.project.exists(to)) {
-            return `${folder ? folder.slice(1) : 'The top folder'} already has ${baseName(from)}.`;
-        }
+        const to = `${folder}/${this.freeName(folder, baseName(from), from)}`;
         if (this.collapsed.delete(from)) this.collapsed.add(to);
         if (folder) this.collapsed.delete(folder);
         saveCollapsed(this.collapsed);
@@ -376,18 +373,32 @@ export class FileTree {
         if (!name) return 'Enter a name.';
         if (name.includes('/') || name.includes('\\')) return 'Names cannot contain / or \\.';
         if (name === '.' || name === '..') return 'That name is reserved.';
-        const folder = editing.mode === 'rename' ? parentOf(editing.path) : editing.path;
-        const path = `${folder}/${name}`;
-        if (editing.mode === 'rename' && path === editing.path) return null;
-        if (this.project.exists(path)) return `${name} already exists here.`;
+        if (editing.mode === 'rename') return null;
+        if (this.project.exists(`${editing.path}/${name}`)) return `${name} already exists here.`;
         return null;
+    }
+
+    freeName(folder, name, self) {
+        const taken = (candidate) => {
+            const path = `${folder}/${candidate}`;
+            return path !== self && this.project.exists(path);
+        };
+        if (!taken(name)) return name;
+        const isFolder = this.project.isFolder(self);
+        const dot = name.lastIndexOf('.');
+        const [stem, ext] = !isFolder && dot > 0 ? [name.slice(0, dot), name.slice(dot)] : [name, ''];
+        for (let n = 1; ; n++) {
+            const candidate = `${stem} [${n}]${ext}`;
+            if (!taken(candidate)) return candidate;
+        }
     }
 
     commit(editing, name) {
         const error = this.check(editing, name);
         if (error) return error;
         if (editing.mode === 'rename') {
-            const to = `${parentOf(editing.path)}/${name}`;
+            const folder = parentOf(editing.path);
+            const to = `${folder}/${this.freeName(folder, name, editing.path)}`;
             if (to !== editing.path) {
                 if (this.collapsed.delete(editing.path)) this.collapsed.add(to);
                 this.cb.renamed(editing.path, to);
