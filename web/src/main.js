@@ -231,6 +231,7 @@ emulator.addEventListener('state', (event) => setStatus(event.detail.message));
 
 function setStatus(text) {
     $('status').textContent = text;
+    $('status').title = text;
 }
 
 $('run').onclick = () => flash();
@@ -333,11 +334,19 @@ function toggleWifi(setting) {
 
 const boardMenu = new Menu();
 $('board-more').onclick = () => {
+    const fullscreen = $('workspace').classList.contains('fullscreen');
     boardMenu.open($('board-more'), [
         { label: 'Wi-Fi', detail: wifiSummary(), submenu: wifiItems },
         { label: 'microSD card', detail: cardSummary(), submenu: cardItems },
+        null,
+        { label: fullscreen ? 'Exit full screen' : 'Full screen', run: () => setFullscreen(!fullscreen) },
     ]);
 };
+
+function setFullscreen(on) {
+    $('workspace').classList.toggle('fullscreen', on);
+    if (!on) view?.requestMeasure();
+}
 
 function wifiSummary() {
     const wifi = project.board.wifi;
