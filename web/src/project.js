@@ -42,6 +42,7 @@ const decoder = new TextDecoder('utf-8', { fatal: true });
 export const EXAMPLES = [
     { id: 'hello', title: 'Hello, CYD!' },
     { id: 'touch-paint', title: 'Touch paint' },
+    { id: 'bouncy-balls', title: 'Bouncy balls' },
     { id: 'rgb-led', title: 'RGB LED colour wheel' },
     { id: 'light-sensor', title: 'Light sensor' },
     { id: 'boot-button', title: 'BOOT button and backlight' },
