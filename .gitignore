@@ -1,0 +1,8 @@
+# CircuitPython checkout, Python venv and build output (firmware/build.sh)
+firmware/.build/
+
+# Web app
+web/node_modules/
+web/dist/
+
+.DS_Store

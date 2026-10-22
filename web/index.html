@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>CYD CircuitPython Emulator</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='2' y='5' width='28' height='22' rx='3' fill='%23f5c518'/%3E%3Crect x='6' y='9' width='20' height='14' rx='1' fill='%23111'/%3E%3C/svg%3E" />
+  </head>
+  <body>
+    <header class="toolbar">
+      <div class="brand">
+        <span class="brand-chip" aria-hidden="true"></span>
+        <span>CYD CircuitPython</span>
+        <span class="version" id="version">10.3.1</span>
+      </div>
+      <div class="actions">
+        <button id="run" class="primary" title="Save all files to the board and run code.py (Ctrl+S)">▶ Save &amp; Run</button>
+        <button id="stop" title="Stop the running code, like pressing Ctrl+C">■ Stop</button>
+        <button id="reset" title="Press the board's RST button: restart from power-on">↻ Reset</button>
+        <label class="select">
+          <span class="visually-hidden">Load an example</span>
+          <select id="examples">
+            <option value="">Examples…</option>
+          </select>
+        </label>
+        <button id="download" title="Download every file, ready to copy onto the board">⤓ Download .zip</button>
+      </div>
+      <div class="status" id="status" role="status">Starting…</div>
+    </header>
+
+    <main class="workspace">
+      <aside class="files" aria-label="Files on the CIRCUITPY drive">
+        <div class="pane-title">
+          <span>CIRCUITPY</span>
+          <span class="pane-actions">
+            <button id="new-file" class="icon" title="New file">＋</button>
+            <button id="upload" class="icon" title="Add files from your computer">⇪</button>
+            <input id="upload-input" type="file" multiple hidden />
+          </span>
+        </div>
+        <ul id="file-list" class="file-list"></ul>
+      </aside>
+
+      <section class="editor-pane">
+        <div class="pane-title">
+          <span id="editor-title">code.py</span>
+          <span class="pane-actions">
+            <button id="rename-file" class="link" title="Rename this file">Rename</button>
+            <button id="delete-file" class="link danger" title="Delete this file">Delete</button>
+          </span>
+        </div>
+        <div id="editor" class="editor"></div>
+      </section>
+
+      <section class="device-pane" aria-label="Emulated board">
+        <div class="board">
+          <div class="board-top">
+            <span class="silk">ESP32-2432S028R</span>
+            <span class="led" id="led" title="RGB LED (on the back of the real board)"></span>
+          </div>
+          <div class="screen-frame">
+            <canvas id="screen" width="320" height="240" aria-label="Board display. Click or drag to touch the screen."></canvas>
+            <div class="screen-off" id="screen-off"></div>
+          </div>
+          <div class="board-bottom">
+            <button id="boot-button" class="hw-button" title="Hold to press the BOOT button (board.BUTTON, GPIO0)">BOOT</button>
+            <button id="rst-button" class="hw-button" title="Press the RST button">RST</button>
+          </div>
+        </div>
+        <div class="controls">
+          <label>
+            <span>Light on sensor</span>
+            <input id="light" type="range" min="0" max="100" value="70" />
+          </label>
+          <p class="hint">Click or drag on the screen to touch it.</p>
+        </div>
+      </section>
+
+      <section class="console-pane">
+        <div class="pane-title">
+          <span>Serial console</span>
+          <span class="pane-actions">
+            <span class="hint">Click here and press any key for the REPL · Ctrl+D reloads</span>
+            <button id="clear-console" class="link">Clear</button>
+          </span>
+        </div>
+        <div id="console" class="console"></div>
+      </section>
+    </main>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
