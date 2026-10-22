@@ -18,7 +18,7 @@ from adafruit_display_text import label
 display = board.DISPLAY
 screen = displayio.Group()
 display.root_group = screen
-lines = label.Label(terminalio.FONT, text="Joining Wi-Fi...", color=0xFFFFFF, scale=2, x=10, y=20, line_spacing=1.1)
+lines = label.Label(terminalio.FONT, text="Checking Wi-Fi...", color=0xFFFFFF, scale=2, x=10, y=20, line_spacing=1.1)
 screen.append(lines)
 
 

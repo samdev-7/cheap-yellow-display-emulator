@@ -1,0 +1,29 @@
+diff --git a/supervisor/shared/workflow.c b/supervisor/shared/workflow.c
+index 21dd051..882b7c4 100644
+--- a/supervisor/shared/workflow.c
++++ b/supervisor/shared/workflow.c
+@@ -30,6 +30,11 @@
+ #include "tusb.h"
+ #endif
+ 
++#if CIRCUITPY_WIFI && !CIRCUITPY_WEB_WORKFLOW
++// Joins the settings.toml network, if there is one. Defined by the port.
++void port_start_wifi(void);
++#endif
++
+ #if CIRCUITPY_WEB_WORKFLOW
+ #include "supervisor/shared/web_workflow/web_workflow.h"
+ #include "supervisor/shared/web_workflow/websocket.h"
+@@ -119,6 +124,12 @@ void supervisor_workflow_start(void) {
+     #if CIRCUITPY_USB_KEYBOARD_WORKFLOW
+     usb_keyboard_init();
+     #endif
++
++    #if CIRCUITPY_WIFI && !CIRCUITPY_WEB_WORKFLOW
++    // Without the web workflow, still join the settings.toml network here, as
++    // it would: after boot.py, before code.py.
++    port_start_wifi();
++    #endif
+ }
+ 
+ FRESULT supervisor_workflow_move(const char *old_path, const char *new_path) {

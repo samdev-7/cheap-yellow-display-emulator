@@ -31,7 +31,7 @@ screen.append(displayio.TileGrid(background, pixel_shader=palette))
 
 place = label.Label(terminalio.FONT, text="Burlington, VT", color=0x8DA9C4, scale=2, x=12, y=18)
 temperature = label.Label(terminalio.FONT, text="--", color=0xFFFFFF, scale=6, x=12, y=80)
-details = label.Label(terminalio.FONT, text="Joining Wi-Fi...", color=0xEEF4ED, scale=2, x=12, y=150, line_spacing=1.1)
+details = label.Label(terminalio.FONT, text="Checking the weather...", color=0xEEF4ED, scale=2, x=12, y=150, line_spacing=1.1)
 for item in (place, temperature, details):
     screen.append(item)
 

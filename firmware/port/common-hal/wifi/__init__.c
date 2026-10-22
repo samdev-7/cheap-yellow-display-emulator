@@ -23,6 +23,10 @@ wifi_radio_obj_t common_hal_wifi_radio_obj;
 
 static bool initialized = false;
 
+void port_start_wifi(void) {
+    wifi_ensure_init();
+}
+
 void common_hal_wifi_init(bool user_initiated) {
     (void)user_initiated;
     wifi_ensure_init();
