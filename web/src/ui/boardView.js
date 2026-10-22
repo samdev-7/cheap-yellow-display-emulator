@@ -46,6 +46,10 @@ function face(className, svgText) {
     return { element, svg, overlay, glow };
 }
 
+function srgb(linear) {
+    return linear <= 0.0031308 ? 12.92 * linear : 1.055 * linear ** (1 / 2.4) - 0.055;
+}
+
 function formatLux(lux) {
     if (lux === 0) return 'dark';
     return `${lux < 10 ? lux.toPrecision(1) : Math.round(lux).toLocaleString()} lux`;
@@ -250,7 +254,13 @@ export class BoardView {
     }
 
     wireReset(button) {
+        this.focusable(button);
         button.addEventListener('click', () => this.onReset());
+    }
+
+    focusable(button) {
+        button.tabIndex = 0;
+        button.addEventListener('pointerdown', () => button.focus());
     }
 
     wireBoot(button) {
@@ -261,6 +271,7 @@ export class BoardView {
             this.emulator.setBootButton(down);
         };
         this.bootButtons = [...(this.bootButtons ?? []), button];
+        this.focusable(button);
         button.addEventListener('pointerdown', (event) => {
             button.setPointerCapture(event.pointerId);
             press(true);
@@ -302,15 +313,19 @@ export class BoardView {
 
     ledTip() {
         const { red, green, blue } = this.ledOutputs;
-        const percent = (value) => `${Math.round(value * 100)}%`;
-        const state = Math.max(red, green, blue) > 0 ? `Red ${percent(red)} · Green ${percent(green)} · Blue ${percent(blue)}` : 'Off';
-        return ['RGB LED', state, 'board.LED_RED, LED_GREEN, LED_BLUE'];
+        return [[red, 'red'], [green, 'green'], [blue, 'blue']].map(([value, channel]) => ({
+            text: String(Math.round(value * 255)),
+            className: `board-tip-${channel}`,
+        }));
     }
 
     showLeds(out) {
         this.ledOutputs = out;
         this.refreshTip();
-        const level = Math.max(out.red, out.green, out.blue);
+        const red = srgb(out.red);
+        const green = srgb(out.green);
+        const blue = srgb(out.blue);
+        const level = Math.max(red, green, blue);
         for (const { element, lens, bloom } of this.leds) {
             if (level <= 0) {
                 element.classList.remove('lit');
@@ -318,7 +333,7 @@ export class BoardView {
                 bloom.style.opacity = '0';
                 continue;
             }
-            const hue = `rgb(${Math.round((out.red / level) * 255)} ${Math.round((out.green / level) * 255)} ${Math.round((out.blue / level) * 255)})`;
+            const hue = `rgb(${Math.round((red / level) * 255)} ${Math.round((green / level) * 255)} ${Math.round((blue / level) * 255)})`;
             element.classList.add('lit');
             bloom.style.setProperty('--led', hue);
             lens.style.background = `color-mix(in srgb, ${hue} ${Math.round(35 + level * 65)}%, #fbf6e4)`;
@@ -342,7 +357,7 @@ export class BoardView {
 
         let level = 70;
         let reading = null;
-        this.attachTip(dial, () => ['Light sensor', `${reading.lux} · AnalogIn reads ${reading.value}`, 'Drag, scroll or use the arrow keys']);
+        this.attachTip(dial, () => [{ text: reading.lux }, { text: `(${reading.value})` }], { stacked: true });
         const set = (next, fromUser = true) => {
             level = Math.max(0, Math.min(100, Math.round(next)));
             dial.style.setProperty('--level', `${level}%`);
@@ -437,19 +452,23 @@ export class BoardView {
         return back;
     }
 
-    attachTip(target, lines) {
-        target.addEventListener('pointerenter', () => this.showTip(target, lines));
+    attachTip(target, parts, { stacked = false } = {}) {
+        const show = () => {
+            this.tip.classList.toggle('stacked', stacked);
+            this.showTip(target, parts);
+        };
+        target.addEventListener('pointerenter', show);
         target.addEventListener('pointerleave', () => this.hideTip(target));
-        target.addEventListener('focus', () => this.showTip(target, lines));
+        target.addEventListener('focus', show);
         target.addEventListener('blur', () => this.hideTip(target));
         if (target.tabIndex >= 0) {
             target.setAttribute('aria-describedby', this.tip.id);
         }
     }
 
-    showTip(target, lines) {
+    showTip(target, parts) {
         this.tipTarget = target;
-        this.tipLines = lines;
+        this.tipParts = parts;
         this.tip.hidden = false;
         this.refreshTip();
     }
@@ -462,27 +481,50 @@ export class BoardView {
 
     refreshTip() {
         if (!this.tipTarget) return;
-        const [title, ...details] = this.tipLines();
-        const text = [title, ...details].join('\n');
-        if (text !== this.tipText) {
-            this.tipText = text;
-            this.tip.replaceChildren();
-            const heading = document.createElement('strong');
-            heading.textContent = title;
-            this.tip.append(heading);
-            details.forEach((detail, index) => {
-                const line = document.createElement('span');
-                line.textContent = detail;
-                if (index === details.length - 1 && details.length > 1) line.className = 'board-tip-hint';
-                this.tip.append(line);
-            });
+        const parts = this.tipParts();
+        const key = parts.map((part) => part.text).join(' ');
+        if (key !== this.tipText) {
+            this.tipText = key;
+            this.tip.replaceChildren(
+                ...parts.map(({ text, className }) => {
+                    const span = document.createElement('span');
+                    span.textContent = text;
+                    if (className) span.className = className;
+                    return span;
+                }),
+            );
         }
-        const host = this.host.getBoundingClientRect();
+        this.placeTip();
+    }
+
+    placeTip() {
+        const gap = 6;
         const target = this.tipTarget.getBoundingClientRect();
-        const half = this.tip.offsetWidth / 2;
-        const centre = target.left + target.width / 2 - host.left;
-        this.tip.style.left = `${Math.min(Math.max(centre, half + 4), host.width - half - 4)}px`;
-        this.tip.style.top = `${target.top - host.top}px`;
+        const screen = this.canvas.getBoundingClientRect();
+        const panel = (this.host.closest('section') ?? this.host).getBoundingClientRect();
+        const width = this.tip.offsetWidth;
+        const height = this.tip.offsetHeight;
+        const middleX = target.left + target.width / 2;
+        const middleY = target.top + target.height / 2;
+        const spots = [];
+        for (const x of [target.left - gap - width, target.right + gap]) {
+            for (const y of [middleY - height / 2, target.top, target.bottom - height]) spots.push({ x, y });
+        }
+        for (const y of [target.top - gap - height, target.bottom + gap]) {
+            for (const x of [middleX - width / 2, target.right - width, target.left]) spots.push({ x, y });
+        }
+        const overlap = ({ x, y }) =>
+            Math.max(0, Math.min(x + width, screen.right) - Math.max(x, screen.left)) *
+            Math.max(0, Math.min(y + height, screen.bottom) - Math.max(y, screen.top));
+        const inside = ({ x, y }) =>
+            x >= panel.left + 4 && x + width <= panel.right - 4 && y >= panel.top + 4 && y + height <= panel.bottom - 4;
+        const fits = spots.filter(inside);
+        const best =
+            fits.find((spot) => overlap(spot) === 0) ??
+            [...(fits.length ? fits : spots)].sort((a, b) => overlap(a) - overlap(b))[0];
+        const host = this.host.getBoundingClientRect();
+        this.tip.style.left = `${best.x - host.left}px`;
+        this.tip.style.top = `${best.y - host.top}px`;
     }
 
     render() {
@@ -494,7 +536,7 @@ export class BoardView {
         this.image.data.set(this.emulator.framebuffer);
         this.context.putImageData(this.image, 0, 0);
         const out = this.emulator.outputs();
-        this.dim.style.opacity = String(1 - (out.displayOn ? out.backlight : 0));
+        this.dim.style.opacity = String(1 - (out.displayOn ? srgb(out.backlight) : 0));
         this.showLeds(out);
     }
 }
