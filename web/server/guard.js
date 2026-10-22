@@ -9,6 +9,10 @@ export function config(env) {
         enabled: env.PROXY_ENABLED !== 'false',
         secret: env.PROXY_SECRET || (dev ? devSecret : ''),
         turnstileSecret: env.TURNSTILE_SECRET_KEY || (dev ? TEST_SECRET_KEY : ''),
+        turnstileHostnames: (env.TURNSTILE_HOSTNAMES || '')
+            .split(',')
+            .map((name) => name.trim().toLowerCase())
+            .filter(Boolean),
     };
 }
 

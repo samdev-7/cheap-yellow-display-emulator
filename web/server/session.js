@@ -1,4 +1,4 @@
-import { clientAddress, clientHash, config, error, json, refuse } from './guard.js';
+import { TEST_SECRET_KEY, clientAddress, clientHash, config, error, json, refuse } from './guard.js';
 import { ACCESS_SECONDS, SESSION_SECONDS, newId, sign, verify } from './tokens.js';
 
 export const SESSION_COOKIE = 'cyd_session';
@@ -10,16 +10,23 @@ export async function handleSession(request, env) {
     if (refused) return refused;
 
     const { turnstile } = await request.json().catch(() => ({}));
-    if (typeof turnstile !== 'string' || !turnstile) {
+    if (typeof turnstile !== 'string' || !turnstile || turnstile.length > 2048) {
         return error(400, 'turnstile', 'Missing the Turnstile token.');
+    }
+    if (!settings.dev && settings.turnstileHostnames.length === 0) {
+        return error(500, 'not_configured', 'The network proxy is missing TURNSTILE_HOSTNAMES.');
     }
     const form = new URLSearchParams({ secret: settings.turnstileSecret, response: turnstile });
     const address = clientAddress(request);
     if (address !== 'local') form.set('remoteip', address);
-    const check = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', { method: 'POST', body: form })
-        .then((response) => response.json())
+    const check = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
+        method: 'POST',
+        body: form,
+        signal: AbortSignal.timeout(10_000),
+    })
+        .then((response) => (response.ok ? response.json() : null))
         .catch(() => null);
-    if (!check?.success || (check.action && check.action !== TURNSTILE_ACTION)) {
+    if (!check || check.success !== true || !passes(check, settings)) {
         return error(403, 'turnstile', 'The Turnstile check failed.');
     }
 
@@ -29,6 +36,12 @@ export async function handleSession(request, env) {
     return json(200, { expiresAt: exp * 1000 }, {
         'Set-Cookie': `${SESSION_COOKIE}=${session}; Path=/api; Max-Age=${SESSION_SECONDS}; HttpOnly; SameSite=Strict${secure}`,
     });
+}
+
+function passes(check, settings) {
+    if (settings.turnstileSecret === TEST_SECRET_KEY) return settings.dev;
+    if (check.action !== TURNSTILE_ACTION) return false;
+    return settings.turnstileHostnames.length === 0 ? settings.dev : settings.turnstileHostnames.includes(check.hostname);
 }
 
 export async function handleToken(request, env) {
