@@ -1,6 +1,7 @@
 import frontSvg from '../assets/board-front.svg?raw';
 import backSvg from '../assets/board-back.svg?raw';
 import { SCREEN_HEIGHT, SCREEN_WIDTH } from '../emulator/shared.js';
+import { analogInValue, lightLux, lightSensorMillivolts } from '../emulator/analog.js';
 
 const [VIEW_W, VIEW_H] = frontSvg.match(/viewBox="[\d.-]+ [\d.-]+ ([\d.]+) ([\d.]+)"/).slice(1).map(Number);
 
@@ -43,6 +44,11 @@ function face(className, svgText) {
     glow.className = 'board-glow';
     element.append(overlay, glow);
     return { element, svg, overlay, glow };
+}
+
+function formatLux(lux) {
+    if (lux === 0) return 'dark';
+    return `${lux < 10 ? lux.toPrecision(1) : Math.round(lux).toLocaleString()} lux`;
 }
 
 export class BoardView {
@@ -322,11 +328,10 @@ export class BoardView {
             level = Math.max(0, Math.min(100, Math.round(next)));
             dial.style.setProperty('--level', `${level}%`);
             dial.setAttribute('aria-valuenow', String(level));
-            const mv = 50 + (1 - level / 100) * 1200;
+            const mv = Math.round(lightSensorMillivolts(level));
             this.emulator.setLightSensorMillivolts(mv);
-            const reading = Math.round((mv * 65535) / 3300);
             value.textContent = String(level);
-            dial.title = `Light: ${level}% (AnalogIn reads about ${reading})`;
+            dial.title = `Light: ${formatLux(lightLux(level))} (AnalogIn reads about ${analogInValue(mv)})`;
             if (fromUser) {
                 this.onLight?.(level);
             }

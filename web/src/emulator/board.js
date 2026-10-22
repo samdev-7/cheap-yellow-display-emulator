@@ -2,6 +2,7 @@ import { CTRL } from './shared.js';
 import { ILI9341 } from './ili9341.js';
 import { XPT2046 } from './xpt2046.js';
 import { SDCard } from './sdcard.js';
+import { adcMillivolts } from './analog.js';
 
 const PIN = {
     BOOT: 0,
@@ -192,6 +193,10 @@ export class CYDBoard {
     }
 
     adcRead(pin) {
+        return adcMillivolts(this.pinMillivolts(pin));
+    }
+
+    pinMillivolts(pin) {
         if (pin === PIN.LDR) {
             return Atomics.load(this.ctrl, CTRL.LIGHT_MV);
         }
