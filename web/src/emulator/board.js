@@ -1,6 +1,7 @@
 import { CTRL } from './shared.js';
 import { ILI9341 } from './ili9341.js';
 import { XPT2046 } from './xpt2046.js';
+import { SDCard } from './sdcard.js';
 
 const PIN = {
     BOOT: 0,
@@ -33,7 +34,7 @@ const PULL_UP = 1;
 const PULL_DOWN = 2;
 
 export class CYDBoard {
-    constructor({ ctrl, framebuffer }) {
+    constructor({ ctrl, framebuffer }, card) {
         this.ctrl = ctrl;
         this.mode = new Uint8Array(40);
         this.pull = new Uint8Array(40);
@@ -50,6 +51,12 @@ export class CYDBoard {
             y: Atomics.load(ctrl, CTRL.TOUCH_Y),
         }));
         this.lastDisplayOn = -1;
+        this.sd = new SDCard(card ?? { sectors: 0, blocks: new Map() });
+        this.sdWasInserted = false;
+    }
+
+    get sdInserted() {
+        return Atomics.load(this.ctrl, CTRL.SD_INSERTED) === 1 && this.sd.sectors > 0;
     }
 
     gpioConfig(pin, mode, pull) {
@@ -152,6 +159,21 @@ export class CYDBoard {
             }
             this.touch.transfer(out, into, len, writeValue);
             return;
+        }
+        if (sck === PIN.SD_SCK && this.sdInserted) {
+            if (!this.sdWasInserted) {
+                this.sdWasInserted = true;
+                this.sd.powerOn();
+            }
+            if (this.gpioGet(PIN.SD_CS)) {
+                fill(into, 0xff);
+                return;
+            }
+            this.sd.transfer(out, into, len, writeValue);
+            return;
+        }
+        if (sck === PIN.SD_SCK) {
+            this.sdWasInserted = false;
         }
         fill(into, 0xff);
     }

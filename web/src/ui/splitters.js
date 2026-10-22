@@ -16,6 +16,7 @@ export function initSplitters(workspace) {
 
     const splitters = [...workspace.querySelectorAll('.splitter')];
     const clampers = [];
+    const resetters = [];
 
     for (const splitter of splitters) {
         const name = splitter.dataset.var;
@@ -55,6 +56,7 @@ export function initSplitters(workspace) {
         splitter.tabIndex = 0;
         apply(saved[name] ?? fallback);
         clampers.push(() => apply(current()));
+        resetters.push(() => apply(fallback));
 
         splitter.addEventListener('pointerdown', (event) => {
             event.preventDefault();
@@ -97,4 +99,12 @@ export function initSplitters(workspace) {
     }
 
     window.addEventListener('resize', () => clampers.forEach((clamp) => clamp()));
+
+    return {
+        reset() {
+            resetters.forEach((reset) => reset());
+            saved = {};
+            save();
+        },
+    };
 }

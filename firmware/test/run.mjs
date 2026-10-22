@@ -5,6 +5,7 @@ import { parseArgs } from 'node:util';
 
 import { createShared, views, CTRL, SCREEN_WIDTH, SCREEN_HEIGHT } from '../../web/src/emulator/shared.js';
 import { createHal } from '../../web/src/emulator/hal.js';
+import { blankCard, formattedCard } from '../../web/src/emulator/sdcard.js';
 import createCircuitPython from '../../web/public/firmware/circuitpython.mjs';
 
 const { values, positionals } = parseArgs({
@@ -15,6 +16,8 @@ const { values, positionals } = parseArgs({
         touch: { type: 'string' },
         serial: { type: 'string' },
         lib: { type: 'string', multiple: true, default: [] },
+        card: { type: 'string' },
+        'blank-card': { type: 'string' },
     },
 });
 
@@ -68,11 +71,16 @@ const finish = () => {
     process.exit(0);
 };
 
+let card;
+if (values.card) card = formattedCard(Number(values.card));
+if (values['blank-card']) card = blankCard(Number(values['blank-card']));
+if (card) Atomics.store(shared.ctrl, CTRL.SD_INSERTED, 1);
+
 const hal = createHal(shared, files, (message) => {
     if (message.type === 'serial') {
         process.stdout.write(decoder.decode(message.bytes, { stream: true }));
     }
-});
+}, card);
 
 const background = hal.background;
 let typed = false;

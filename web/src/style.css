@@ -55,6 +55,7 @@ body {
 body {
     display: flex;
     flex-direction: column;
+    overflow: hidden;
 }
 
 html,
@@ -206,8 +207,67 @@ select {
 
 .actions {
     display: flex;
+    align-items: center;
     gap: 8px;
     flex-wrap: wrap;
+}
+
+.actions button,
+.project-switch {
+    height: 32px;
+}
+
+.project-switch {
+    display: inline-flex;
+    align-items: stretch;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--panel);
+}
+
+.project-name {
+    width: 200px;
+    border: none;
+    background: none;
+    padding: 0 10px;
+    font: inherit;
+    font-weight: 600;
+    border-radius: 6px 0 0 6px;
+    text-overflow: ellipsis;
+}
+
+.project-name:hover {
+    background: var(--hover);
+}
+
+.project-name:focus-visible {
+    outline-offset: -2px;
+}
+
+.actions .project-menu {
+    height: auto;
+    width: 30px;
+    padding: 0;
+    justify-content: center;
+    border: none;
+    border-left: 1px solid var(--border);
+    border-radius: 0 6px 6px 0;
+    color: var(--muted);
+}
+
+.actions button {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0 12px;
+    line-height: 1;
+}
+
+.actions svg {
+    display: block;
+    width: 14px;
+    height: 14px;
+    flex: none;
 }
 
 .status {
@@ -216,19 +276,28 @@ select {
     font-size: 13px;
 }
 
+.settings {
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    display: inline-grid;
+    place-items: center;
+}
+
+.settings svg {
+    width: 16px;
+    height: 16px;
+}
+
 .workspace {
     --files-w: 220px;
     --device-w: 560px;
-    --console-h: 220px;
     flex: 1;
     min-height: 0;
     display: grid;
     grid-template-columns: var(--files-w) 5px minmax(260px, 1fr) 5px var(--device-w);
-    grid-template-rows: minmax(120px, 1fr) 5px var(--console-h);
-    grid-template-areas:
-        'files split-files editor split-device device'
-        'files split-files split-console split-device device'
-        'files split-files console split-device device';
+    grid-template-rows: minmax(0, 1fr);
+    grid-template-areas: 'files split-files editor split-device side';
 }
 
 .files {
@@ -246,28 +315,51 @@ select {
     min-width: 0;
 }
 
-.console-pane {
-    grid-area: console;
+.side-column {
+    grid-area: side;
     display: flex;
     flex-direction: column;
     min-height: 0;
     min-width: 0;
+}
+
+.device-pane {
+    flex: none;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    overflow: hidden;
+    min-width: 0;
+}
+
+.console-pane {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 120px;
+    min-width: 0;
     background: var(--console-bg);
+    border-top: 1px solid var(--border);
 }
 
 .console-pane .pane-title {
     background: var(--panel);
 }
 
-.device-pane {
-    grid-area: device;
-    padding: 20px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 12px;
-    overflow: auto;
-    min-width: 0;
+.console-pane.collapsed {
+    flex: none;
+    min-height: 0;
+    margin-top: auto;
+}
+
+.console-pane.collapsed .console {
+    display: none;
+}
+
+.console-pane.collapsed .pane-title {
+    border-bottom: none;
 }
 
 .splitter {
@@ -282,19 +374,10 @@ select {
     grid-area: split-device;
 }
 
-.splitter-y {
-    grid-area: split-console;
-    cursor: row-resize;
-}
-
 .splitter::after {
     content: '';
     position: absolute;
     inset: 0 -4px;
-}
-
-.splitter-y::after {
-    inset: -4px 0;
 }
 
 .splitter:hover,
@@ -303,7 +386,6 @@ select {
     background: var(--splitter-hover);
     outline: none;
 }
-
 .pane-title {
     display: flex;
     align-items: center;
@@ -334,12 +416,11 @@ select {
 
 .tree {
     min-height: calc(100% - 34px);
-    padding: 4px 0 24px;
+    padding: 0 0 24px;
 }
 
 .tree-divider {
     height: 1px;
-    margin: 4px 10px;
     background: var(--border);
 }
 
@@ -361,7 +442,6 @@ select {
 
 .tree-row.selected {
     background: var(--hover);
-    box-shadow: inset 0 0 0 1px var(--border);
 }
 
 .tree-row.dragging {
@@ -508,9 +588,28 @@ select {
     color: var(--danger);
 }
 
+.menu-heading {
+    padding: 6px 10px 2px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--muted);
+    letter-spacing: 0.02em;
+}
+
+.menu button:disabled {
+    color: var(--muted);
+    cursor: default;
+    background: none;
+}
+
+.menu-check {
+    display: inline-block;
+    width: 1.2em;
+}
+
 .menu-separator {
     height: 1px;
-    margin: 4px 2px;
+    margin: 4px -4px;
     background: var(--border);
 }
 
@@ -530,7 +629,7 @@ select {
 }
 
 #board {
-    width: 100%;
+    width: 92%;
     max-width: 900px;
 }
 
@@ -538,12 +637,14 @@ select {
     position: relative;
     container-type: inline-size;
     line-height: 0;
+    margin-bottom: calc(-100% * 1.6 / 86);
     user-select: none;
     -webkit-user-select: none;
     -webkit-touch-callout: none;
 }
 
 .board-view svg {
+    position: relative;
     display: block;
     width: 100%;
     height: auto;
@@ -691,6 +792,50 @@ select {
     transition: opacity 0.05s linear, transform 0.05s linear;
 }
 
+.board-sdcard {
+    position: absolute;
+    background: #2e2e2e;
+    border-radius: 0.45cqw;
+    pointer-events: none;
+}
+
+.board-sdcard[hidden] {
+    display: none;
+}
+
+.board-cable {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+}
+
+.board-cable[hidden] {
+    display: none;
+}
+
+.board-cable > * {
+    position: absolute;
+}
+
+.board-cable-cord {
+    background: #3a3d42;
+}
+
+.board-cable-relief {
+    background: #3a3d42;
+    border-radius: 0.4cqw;
+}
+
+.board-cable-plug {
+    background: #4b4f55;
+    border-radius: 0.9cqw;
+}
+
+.board-cable-tip {
+    background: #c9cbce;
+    border-radius: 0.2cqw;
+}
+
 .board-hotspot {
     padding: 0;
     border: none;
@@ -755,6 +900,11 @@ select {
     display: block;
 }
 
+.device-controls .square {
+    width: 32px;
+    padding: 0;
+}
+
 .device-controls button:disabled {
     opacity: 0.45;
     cursor: default;
@@ -789,12 +939,11 @@ select {
 @media (max-width: 900px) {
     .workspace {
         grid-template-columns: minmax(0, 1fr);
-        grid-template-rows: auto auto 50vh 220px;
+        grid-template-rows: auto auto 50vh;
         grid-template-areas:
-            'device'
+            'side'
             'files'
-            'editor'
-            'console';
+            'editor';
         overflow: auto;
     }
 
@@ -807,7 +956,8 @@ select {
         max-height: 200px;
     }
 
-    .device-pane {
-        border-bottom: 1px solid var(--border);
+    .console-pane {
+        height: 220px;
+        flex: none;
     }
 }

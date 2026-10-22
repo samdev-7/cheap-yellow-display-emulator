@@ -1,0 +1,15 @@
+# settings.toml: settings CircuitPython reads when it starts, and values
+# your code can read with os.getenv("NAME").
+
+# Turn the screen: 0 is landscape with the USB port on the right as you look
+# at the screen. 90, 180 and 270 rotate it.
+CIRCUITPY_DISPLAY_ROTATION = 0
+
+# Your own settings, for code.py to read:
+#     import os
+#     greeting = os.getenv("GREETING")
+GREETING = "Hello, CYD!"
+
+# WiFi, for the real board (the emulator doesn't have WiFi yet):
+# CIRCUITPY_WIFI_SSID = "your network"
+# CIRCUITPY_WIFI_PASSWORD = "your password"

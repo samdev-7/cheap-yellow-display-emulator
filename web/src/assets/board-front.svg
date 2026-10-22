@@ -3,7 +3,6 @@
 <desc>ESP32-2432S028R Cheap Yellow Display, screen side</desc>
 <g id="breadboard">
 <rect x="0.00" y="15.90" width="6.80" height="18.20" rx="0" fill="#2e2e2e"/>
-<rect id="sd-slot" x="39.99" y="48.60" width="11.64" height="3.00" rx="0.4" fill="#2e2e2e"/>
 <path id="pcb" d="M 3.40 0.00 A 3.4 3.4 0 0 0 0.00 3.40 L 0.00 15.90 L 6.80 15.90 L 6.80 34.10 L 0.00 34.10 L 0.00 46.60 A 3.4 3.4 0 0 0 3.40 50.00 L 82.60 50.00 A 3.4 3.4 0 0 0 86.00 46.60 L 86.00 3.40 A 3.4 3.4 0 0 0 82.60 0.00 Z" fill="#ffd84a"/>
 <circle cx="4.00" cy="4.00" r="3.0" fill="#d9a900"/>
 <circle cx="4.00" cy="4.00" r="1.6" fill="#ffffff"/>
@@ -32,5 +31,6 @@
 <rect id="connector11pin" x="84.80" y="16.89" width="0.6" height="0.6" fill="none"/>
 <rect id="connector12pin" x="57.21" y="0.60" width="0.6" height="0.6" fill="none"/>
 <rect id="connector13pin" x="58.46" y="0.60" width="0.6" height="0.6" fill="none"/>
+<rect id="sd-card" x="39.99" y="48.60" width="11.64" height="3.00" fill="none"/>
 </g>
 </svg>

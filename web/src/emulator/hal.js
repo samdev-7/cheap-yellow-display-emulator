@@ -1,13 +1,31 @@
-import { CTRL, SERIAL_SIZE, unpackOps } from './shared.js';
+import { CTRL, SERIAL_SIZE, unpackCard, unpackOps } from './shared.js';
 import { CYDBoard } from './board.js';
 
 const OUTPUT_FLUSH_MS = 16;
 const OUTPUT_FLUSH_BYTES = 4096;
+const SD_SYNC_MS = 500;
 
-export function createHal(shared, files, post) {
-    const { ctrl, serial, mailbox } = shared;
-    const board = new CYDBoard(shared);
+export function createHal(shared, files, post, card) {
+    const { ctrl, serial, mailbox, sdArea } = shared;
+    const board = new CYDBoard(shared, card);
     board.reset();
+
+    let sdGeneration = Atomics.load(ctrl, CTRL.SD_GENERATION);
+    let lastSdSync = 0;
+    const syncCard = () => {
+        const generation = Atomics.load(ctrl, CTRL.SD_GENERATION);
+        if (generation !== sdGeneration) {
+            sdGeneration = generation;
+            board.sd.load(unpackCard(sdArea));
+            board.sdWasInserted = false;
+        }
+        if (board.sd.dirty.size > 0) {
+            const blocks = [...board.sd.dirty].map((index) => [index, board.sd.blocks.get(index).slice()]);
+            board.sd.dirty.clear();
+            post({ type: 'sd-blocks', generation: sdGeneration, blocks });
+        }
+        lastSdSync = performance.now();
+    };
 
     const start = performance.now();
     let output = [];
@@ -34,6 +52,9 @@ export function createHal(shared, files, post) {
 
     const sleep = (ms) => {
         flush();
+        if (performance.now() - lastSdSync > SD_SYNC_MS) {
+            syncCard();
+        }
         Atomics.wait(ctrl, CTRL.WAKE, Atomics.load(ctrl, CTRL.WAKE), ms);
     };
 
@@ -47,8 +68,12 @@ export function createHal(shared, files, post) {
             if (++backgroundCalls & 0xff) {
                 return;
             }
-            if (outputBytes > OUTPUT_FLUSH_BYTES || performance.now() - lastFlush > OUTPUT_FLUSH_MS) {
+            const now = performance.now();
+            if (outputBytes > OUTPUT_FLUSH_BYTES || now - lastFlush > OUTPUT_FLUSH_MS) {
                 flush();
+            }
+            if (now - lastSdSync > SD_SYNC_MS) {
+                syncCard();
             }
         },
         reset: (toBootloader) => {
@@ -135,6 +160,9 @@ export function createHal(shared, files, post) {
         flashDirty: () => {},
     };
 
-    hal.flush = flush;
+    hal.flush = () => {
+        flush();
+        syncCard();
+    };
     return hal;
 }

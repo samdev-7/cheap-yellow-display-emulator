@@ -2,12 +2,12 @@ import { views } from './shared.js';
 import { createHal } from './hal.js';
 
 self.onmessage = async (event) => {
-    const { type, sab, firmwareUrl, files } = event.data;
+    const { type, sab, firmwareUrl, files, card } = event.data;
     if (type !== 'start') {
         return;
     }
     const post = (message, transfer) => self.postMessage(message, transfer ?? []);
-    const hal = createHal(views(sab), files, post);
+    const hal = createHal(views(sab), files, post, card);
     const { default: createCircuitPython } = await import(/* @vite-ignore */ firmwareUrl);
     const module = await createCircuitPython({
         hal,

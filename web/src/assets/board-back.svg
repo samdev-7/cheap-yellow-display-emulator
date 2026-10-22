@@ -29,8 +29,8 @@
 <rect id="led" x="53.48" y="35.38" width="4.85" height="4.96" rx="0.7" fill="#ffffff"/>
 <circle id="led-lens" cx="55.90" cy="37.86" r="1.7" fill="#fff6d6"/>
 <rect x="32.43" y="34.88" width="15.52" height="14.89" rx="0.8" fill="#e8e8e8"/>
-<rect id="sd-slot" x="34.37" y="48.60" width="11.64" height="3.00" rx="0.4" fill="#2e2e2e"/>
-<rect x="0.00" y="30.19" width="5.90" height="7.50" rx="0.7" fill="#e8e8e8"/>
+<rect x="34.37" y="48.60" width="11.64" height="1.40" rx="0.3" fill="#a8a8a8"/>
+<rect id="usb" x="0.00" y="30.19" width="5.90" height="7.50" rx="0.7" fill="#e8e8e8"/>
 <rect x="0.20" y="31.49" width="1.20" height="4.90" rx="0.3" fill="#4b4b4b"/>
 <rect x="67.80" y="45.00" width="8.80" height="5.00" rx="0.4" fill="#ffffff"/>
 <rect id="connector0pin" x="73.78" y="48.80" width="0.6" height="0.6" rx="0.1" fill="#4b4b4b"/>
@@ -50,5 +50,6 @@
 <rect x="25.57" y="0.00" width="4.60" height="4.60" rx="0.4" fill="#ffffff"/>
 <rect id="connector12pin" x="28.19" y="0.60" width="0.6" height="0.6" rx="0.1" fill="#4b4b4b"/>
 <rect id="connector13pin" x="26.94" y="0.60" width="0.6" height="0.6" rx="0.1" fill="#4b4b4b"/>
+<rect id="sd-card" x="34.37" y="48.60" width="11.64" height="3.00" fill="none"/>
 </g>
 </svg>

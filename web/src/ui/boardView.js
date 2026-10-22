@@ -46,9 +46,11 @@ function face(className, svgText) {
 }
 
 export class BoardView {
-    constructor(host, emulator, { onReset }) {
+    constructor(host, emulator, { onReset, onLight }) {
         this.emulator = emulator;
         this.onReset = onReset;
+        this.onLight = onLight;
+        this.host = host;
         host.classList.add('board-view');
         this.flipper = document.createElement('div');
         this.flipper.className = 'board-flipper';
@@ -62,6 +64,8 @@ export class BoardView {
         this.leds = [];
         this.buildFront();
         this.buildBack();
+        this.buildCables();
+        this.buildCards();
 
         this.showingBack = false;
 
@@ -144,6 +148,64 @@ export class BoardView {
         const lens = boxOf(svg, '#led-lens');
         const led = this.led(this.back, pkg.x, pkg.y, pkg.w, pkg.h, lens.w / 2, false);
         overlay.append(led.element);
+    }
+
+    buildCables() {
+        const port = boxOf(this.back.svg, '#usb');
+        this.cables = [
+            this.cable(this.front.overlay, VIEW_W, 1, port.y),
+            this.cable(this.back.overlay, 0, -1, port.y),
+        ];
+    }
+
+    cable(overlay, edge, dir, y) {
+        const element = document.createElement('div');
+        element.className = 'board-cable';
+        element.hidden = true;
+        element.setAttribute('aria-hidden', 'true');
+        const part = (className, start, end, height) => {
+            const piece = document.createElement('div');
+            piece.className = className;
+            const x0 = edge + dir * start;
+            const x1 = edge + dir * end;
+            place(piece, (x0 + x1) / 2, y, Math.abs(x1 - x0), height);
+            element.append(piece);
+        };
+        part('board-cable-cord', 20, 400, 3.2); // Long enough to run off any panel.
+        part('board-cable-relief', 15, 21, 4.6);
+        part('board-cable-plug', 1.2, 16, 10.4);
+        part('board-cable-tip', -0.4, 1.4, 6.8);
+        overlay.append(element);
+        return element;
+    }
+
+    buildCards() {
+        this.cards = [this.front, this.back].map((face) => {
+            const end = boxOf(face.svg, '#sd-card');
+            const card = document.createElement('div');
+            card.className = 'board-sdcard';
+            card.hidden = true;
+            card.setAttribute('aria-hidden', 'true');
+            place(card, end.x, end.y, end.w, end.h);
+            if (face === this.front) {
+                face.element.prepend(card);
+            } else {
+                face.overlay.prepend(card);
+            }
+            return card;
+        });
+    }
+
+    setCardInserted(inserted) {
+        for (const card of this.cards) {
+            card.hidden = !inserted;
+        }
+    }
+
+    setPowered(on) {
+        for (const cable of this.cables) {
+            cable.hidden = !on;
+        }
     }
 
     button(label, title) {
@@ -244,7 +306,7 @@ export class BoardView {
         dial.append(value);
 
         let level = 70;
-        const set = (next) => {
+        const set = (next, fromUser = true) => {
             level = Math.max(0, Math.min(100, Math.round(next)));
             dial.style.setProperty('--level', `${level}%`);
             dial.setAttribute('aria-valuenow', String(level));
@@ -253,8 +315,12 @@ export class BoardView {
             const reading = Math.round((mv * 65535) / 3300);
             value.textContent = String(level);
             dial.title = `Light: ${level}% (AnalogIn reads about ${reading})`;
+            if (fromUser) {
+                this.onLight?.(level);
+            }
         };
-        set(level);
+        set(level, false);
+        this.setLight = (next) => set(next, false);
 
         let startY = 0;
         let startLevel = 0;
@@ -323,10 +389,14 @@ export class BoardView {
     }
 
     flip() {
-        this.showingBack = !this.showingBack;
-        this.front.element.hidden = this.showingBack;
-        this.back.element.hidden = !this.showingBack;
-        return this.showingBack;
+        return this.setSide(!this.showingBack);
+    }
+
+    setSide(back) {
+        this.showingBack = back;
+        this.front.element.hidden = back;
+        this.back.element.hidden = !back;
+        return back;
     }
 
     render() {

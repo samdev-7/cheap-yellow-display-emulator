@@ -1,7 +1,9 @@
 # Hello, CYD!
 # Shows text on the screen and counts up once a second.
 # This file runs the same way here and on a real Cheap Yellow Display.
+# The greeting comes from settings.toml.
 
+import os
 import time
 
 import board
@@ -19,7 +21,7 @@ palette = displayio.Palette(1)
 palette[0] = 0x002244
 screen.append(displayio.TileGrid(background, pixel_shader=palette))
 
-title = label.Label(terminalio.FONT, text="Hello, CYD!", color=0xFFFF00, scale=3)
+title = label.Label(terminalio.FONT, text=os.getenv("GREETING", "Hello, CYD!"), color=0xFFFF00, scale=3)
 title.anchor_point = (0.5, 0.5)
 title.anchored_position = (display.width // 2, display.height // 2 - 20)
 screen.append(title)

@@ -128,7 +128,7 @@ void port_idle_until_interrupt(void) {
 
 void port_background_task(void) {
     _poll_interrupts();
-    wasm_fs_apply_pending(true);
+    wasm_fs_apply_pending(false);
 }
 
 void port_background_tick(void) {

@@ -1,19 +1,49 @@
-import { get, set } from 'idb-keyval';
+import { del, get, set } from 'idb-keyval';
 
-const STORE_KEY = 'cyd-project-v1';
+import settingsTemplate from './examples/settings.toml?raw';
 
-const exampleSources = import.meta.glob('./examples/**/*', { query: '?raw', import: 'default', eager: true });
+//
+export const FORMAT_VERSION = 1;
+const INDEX_KEY = 'cyd-projects-v1';
+const projectKey = (id) => `cyd-project:${id}`;
+const OLD_FILES_KEY = 'cyd-project-v1';
+const OLD_CARD_KEY = 'cyd-sdcard-v1';
+
+function upgrade(saved) {
+    const version = saved.version ?? 1;
+    if (version > FORMAT_VERSION) {
+        return null;
+    }
+    const board = defaultBoardState();
+    return {
+        ...saved,
+        version: FORMAT_VERSION,
+        files: saved.files ?? [],
+        folders: saved.folders ?? [],
+        board: {
+            ...board,
+            ...saved.board,
+            card: { ...board.card, ...saved.board?.card },
+        },
+    };
+}
+
+export const DEFAULT_NAME = 'Untitled project';
+const DEFAULT_EXAMPLE = 'hello';
+
+const exampleSources = import.meta.glob('./examples/*/**/*', { query: '?raw', import: 'default', eager: true });
 const librarySources = import.meta.glob('./library/**/*.py', { query: '?raw', import: 'default', eager: true });
 
 const encoder = new TextEncoder();
 const decoder = new TextDecoder('utf-8', { fatal: true });
 
 export const EXAMPLES = [
-    { id: 'hello', title: 'Hello, CYD! (text on screen)' },
+    { id: 'hello', title: 'Hello, CYD!' },
     { id: 'touch-paint', title: 'Touch paint' },
     { id: 'rgb-led', title: 'RGB LED colour wheel' },
     { id: 'light-sensor', title: 'Light sensor' },
     { id: 'boot-button', title: 'BOOT button and backlight' },
+    { id: 'sd-card', title: 'microSD card' },
 ];
 
 export function libraryFiles() {
@@ -37,31 +67,58 @@ export function exampleFiles(id) {
     return files;
 }
 
+export function defaultBoardState() {
+    return { side: 'front', light: 70, card: { inserted: false, sizeGB: 8, sectors: 0, blocks: new Map() } };
+}
+
 export class Project {
-    constructor() {
+    constructor(id, name) {
+        this.id = id;
+        this.name = name;
         this.files = new Map(); // path -> Uint8Array
         this.emptyFolders = new Set(); // Folders with nothing in them yet, like lib/ on a new board.
+        this.board = defaultBoardState();
     }
 
-    static async load() {
-        const project = new Project();
-        const saved = await get(STORE_KEY).catch(() => undefined);
-        const files = Array.isArray(saved) ? saved : saved?.files;
-        if (files && files.length > 0) {
-            for (const { path, data } of files) {
-                project.files.set(path, data);
-            }
-            for (const path of saved.folders ?? []) {
-                project.emptyFolders.add(path);
-            }
-        } else {
-            project.loadExample('hello');
+    static fromExample(id, name, exampleId) {
+        const project = new Project(id, name);
+        project.emptyFolders.add('/lib');
+        project.files.set('/settings.toml', encoder.encode(settingsTemplate));
+        for (const file of libraryFiles()) {
+            project.files.set(file.path, file.data);
+        }
+        for (const file of exampleFiles(exampleId)) {
+            project.files.set(file.path, file.data);
         }
         return project;
     }
 
-    async save() {
-        await set(STORE_KEY, { files: this.list(), folders: this.folders() }).catch(() => {});
+    static fromSaved(id, saved) {
+        const upgraded = upgrade(saved);
+        if (!upgraded) {
+            const project = Project.fromSaved(id, { ...saved, version: FORMAT_VERSION });
+            project.newerFormat = true;
+            return project;
+        }
+        const project = new Project(id, upgraded.name);
+        for (const { path, data } of upgraded.files) {
+            project.files.set(path, data);
+        }
+        for (const path of upgraded.folders) {
+            project.emptyFolders.add(path);
+        }
+        project.board = upgraded.board;
+        return project;
+    }
+
+    toSaved() {
+        return {
+            version: FORMAT_VERSION,
+            name: this.name,
+            files: this.list(),
+            folders: this.folders(),
+            board: this.board,
+        };
     }
 
     folders() {
@@ -85,19 +142,6 @@ export class Project {
     mkdir(path) {
         if (!this.exists(path)) {
             this.emptyFolders.add(path);
-        }
-    }
-
-    loadExample(id) {
-        const settings = this.files.get('/settings.toml');
-        this.files.clear();
-        this.emptyFolders = new Set(['/lib']);
-        this.files.set('/settings.toml', settings ?? encoder.encode(''));
-        for (const file of libraryFiles()) {
-            this.files.set(file.path, file.data);
-        }
-        for (const file of exampleFiles(id)) {
-            this.files.set(file.path, file.data);
         }
     }
 
@@ -170,6 +214,107 @@ export class Project {
             this.emptyFolders.add(parent);
         }
     }
+}
+
+export class ProjectStore {
+    constructor() {
+        this.projects = []; // [{ id, name }], in the order they were made.
+        this.currentId = null;
+    }
+
+    static async load() {
+        const store = new ProjectStore();
+        const index = await get(INDEX_KEY).catch(() => undefined);
+        if (index && index.projects?.length > 0) {
+            store.projects = index.projects;
+            store.currentId = index.currentId;
+            store.newerFormat = (index.version ?? 1) > FORMAT_VERSION;
+        } else {
+            await store.migrate();
+        }
+        return store;
+    }
+
+    async migrate() {
+        const oldFiles = await get(OLD_FILES_KEY).catch(() => undefined);
+        const files = Array.isArray(oldFiles) ? oldFiles : oldFiles?.files;
+        let project;
+        if (files && files.length > 0) {
+            project = Project.fromSaved(newId(), { name: DEFAULT_NAME, files, folders: oldFiles.folders ?? [] });
+            const oldCard = await get(OLD_CARD_KEY).catch(() => undefined);
+            if (oldCard) {
+                project.board.card = oldCard;
+            }
+        } else {
+            project = Project.fromExample(newId(), DEFAULT_NAME, DEFAULT_EXAMPLE);
+        }
+        await this.add(project);
+    }
+
+    async open(id) {
+        const saved = await get(projectKey(id)).catch(() => undefined);
+        this.currentId = id;
+        await this.saveIndex();
+        if (!saved) {
+            return Project.fromExample(id, this.nameOf(id) ?? DEFAULT_NAME, DEFAULT_EXAMPLE);
+        }
+        return Project.fromSaved(id, saved);
+    }
+
+    async openCurrent() {
+        const id = this.projects.some((p) => p.id === this.currentId) ? this.currentId : this.projects[0].id;
+        return this.open(id);
+    }
+
+    async add(project) {
+        this.projects.push({ id: project.id, name: project.name });
+        this.currentId = project.id;
+        await this.save(project);
+    }
+
+    async save(project) {
+        if (project.newerFormat) {
+            return;
+        }
+        const entry = this.projects.find((p) => p.id === project.id);
+        if (entry) {
+            entry.name = project.name;
+        }
+        await Promise.all([set(projectKey(project.id), project.toSaved()), this.saveIndex()]).catch(() => {});
+    }
+
+    async remove(id) {
+        this.projects = this.projects.filter((p) => p.id !== id);
+        await del(projectKey(id)).catch(() => {});
+        await this.saveIndex();
+    }
+
+    saveIndex() {
+        if (this.newerFormat) {
+            return Promise.resolve();
+        }
+        return set(INDEX_KEY, { version: FORMAT_VERSION, projects: this.projects, currentId: this.currentId }).catch(() => {});
+    }
+
+    nameOf(id) {
+        return this.projects.find((p) => p.id === id)?.name;
+    }
+
+    uniqueName(base) {
+        const names = new Set(this.projects.map((p) => p.name));
+        if (!names.has(base)) return base;
+        for (let n = 2; ; n++) {
+            if (!names.has(`${base} ${n}`)) return `${base} ${n}`;
+        }
+    }
+
+    newProject(name, exampleId = DEFAULT_EXAMPLE) {
+        return Project.fromExample(newId(), this.uniqueName(name), exampleId);
+    }
+}
+
+function newId() {
+    return crypto.randomUUID();
 }
 
 function comparePaths(a, b) {

@@ -12,9 +12,11 @@ import { FitAddon } from '@xterm/addon-fit';
 import JSZip from 'jszip';
 
 import { Emulator } from './emulator/emulator.js';
-import { EXAMPLES, Project, normalisePath } from './project.js';
+import { CARD_SIZES_GB, blankCard, formattedCard } from './emulator/sdcard.js';
+import { DEFAULT_NAME, EXAMPLES, ProjectStore, normalisePath } from './project.js';
 import { BoardView } from './ui/boardView.js';
 import { FileTree } from './ui/fileTree.js';
+import { Menu } from './ui/menu.js';
 import { initSplitters } from './ui/splitters.js';
 
 const $ = (id) => document.getElementById(id);
@@ -23,15 +25,26 @@ if (!crossOriginIsolated) {
     $('status').textContent = 'This page must be served with cross-origin isolation headers (see web/README).';
 }
 
-const project = await Project.load();
+const store = await ProjectStore.load();
+let project = await store.openCurrent();
 const emulator = new Emulator({ firmwareUrl: `${import.meta.env.BASE_URL}firmware/circuitpython.mjs` });
 
-let syncedFiles = new Map();
-let syncedFolders = new Set();
+let boardFiles = null;
 let openPath = '/code.py';
 const unsaved = new Set();
 
-initSplitters($('workspace'));
+const panes = initSplitters($('workspace'));
+
+let saveTimer = 0;
+function scheduleSave() {
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(() => store.save(project), 300);
+}
+
+function saveNow() {
+    clearTimeout(saveTimer);
+    return store.save(project);
+}
 
 const tree = new FileTree($('file-tree'), project, {
     open: (path) => openFile(path),
@@ -80,7 +93,7 @@ const tree = new FileTree($('file-tree'), project, {
             if (key === path || key.startsWith(path + '/')) editorStates.delete(key);
         }
         if (!project.has(openPath)) {
-            openPath = project.has('/code.py') ? '/code.py' : project.list()[0]?.path ?? '/code.py';
+            openPath = firstFile();
             reopen();
         }
         changed();
@@ -88,18 +101,12 @@ const tree = new FileTree($('file-tree'), project, {
 });
 
 function changed() {
-    scheduleLocalSave();
+    scheduleSave();
     tree.render();
 }
 
-const AUTOSAVE_MS = 1000;
-let localSaveTimer = 0;
-let boardSaveTimer = 0;
-function scheduleLocalSave() {
-    clearTimeout(localSaveTimer);
-    localSaveTimer = setTimeout(() => project.save(), 300);
-    clearTimeout(boardSaveTimer);
-    boardSaveTimer = setTimeout(() => saveToBoard(), AUTOSAVE_MS);
+function firstFile() {
+    return project.has('/code.py') ? '/code.py' : project.list()[0]?.path ?? '/code.py';
 }
 
 $('new-file').onclick = () => tree.startCreate('file');
@@ -131,7 +138,7 @@ function editorState(path, text) {
         basicSetup,
         indentUnit.of('    '),
         EditorState.tabSize.of(4),
-        keymap.of([{ key: 'Mod-s', preventDefault: true, run: () => (run(), true) }]),
+        keymap.of([{ key: 'Mod-s', preventDefault: true, run: () => (flash(), true) }]),
         EditorView.updateListener.of((update) => {
             if (update.docChanged) {
                 project.writeText(openPath, update.state.doc.toString());
@@ -139,7 +146,7 @@ function editorState(path, text) {
                     unsaved.add(openPath);
                     tree.render();
                 }
-                scheduleLocalSave();
+                scheduleSave();
             }
         }),
     ];
@@ -185,67 +192,26 @@ function reopen() {
 }
 
 function boot() {
-    syncedFiles = new Map(project.list().map(({ path, data }) => [path, data]));
-    syncedFolders = new Set(project.folders());
-    unsaved.clear();
-    tree.render();
-    emulator.start(project.list());
-}
-
-function saveToBoard() {
-    clearTimeout(boardSaveTimer);
-    if (!emulator.powered) {
-        return false;
-    }
-    const ops = [];
-    const folders = new Set(project.folders());
-    for (const path of syncedFolders) {
-        if (!folders.has(path)) ops.push({ kind: 'delete', path });
-    }
-    for (const path of syncedFiles.keys()) {
-        if (!project.has(path) && !ops.some((op) => path.startsWith(op.path + '/'))) {
-            ops.push({ kind: 'delete', path });
-        }
-    }
-    for (const path of folders) {
-        if (!syncedFolders.has(path)) ops.push({ kind: 'mkdir', path });
-    }
-    for (const { path, data } of project.list()) {
-        if (syncedFiles.get(path) !== data) ops.push({ kind: 'write', path, data });
-    }
-    syncedFiles = new Map(project.list().map(({ path, data }) => [path, data]));
-    syncedFolders = folders;
-    unsaved.clear();
-    tree.render();
-    project.save();
-    if (ops.length === 0) {
-        return false;
-    }
-    setStatus('Saving to the board…');
-    emulator.applyFiles(ops);
-    return true;
-}
-
-function run() {
-    if (!emulator.powered) {
-        project.save();
-        setPower(true);
+    if (!boardFiles) {
+        flash();
         return;
     }
-    if (!saveToBoard()) {
-        emulator.sendSerial(new Uint8Array([0x03, 0x04]));
-    }
+    emulator.start(boardFiles, project.board.card);
+    showPower();
+}
+
+function flash() {
+    saveNow();
+    boardFiles = project.list();
+    unsaved.clear();
+    tree.render();
+    emulator.start(boardFiles, project.board.card);
+    showPower();
 }
 
 emulator.addEventListener('files-applied', (event) => {
-    const { errors, saved } = event.detail;
-    if (errors) {
-        setStatus(`${errors} file(s) could not be written to CIRCUITPY (is the drive full?)`);
-    } else if (saved) {
-        setStatus('Saved. Auto-reload will restart code.py.');
-    } else {
-        setStatus('Running');
-    }
+    const { errors } = event.detail;
+    setStatus(errors ? `${errors} file(s) didn't fit on CIRCUITPY (the drive is full)` : 'Running');
 });
 
 emulator.addEventListener('reset-requested', () => boot());
@@ -255,19 +221,33 @@ function setStatus(text) {
     $('status').textContent = text;
 }
 
-$('run').onclick = () => run();
-$('stop').onclick = () => emulator.interrupt();
+$('run').onclick = () => flash();
 $('reset').onclick = () => boot();
 
-const board = new BoardView($('board'), emulator, { onReset: () => boot() });
+const board = new BoardView($('board'), emulator, {
+    onReset: () => boot(),
+    onLight: (level) => {
+        project.board.light = level;
+        scheduleSave();
+    },
+});
 
-$('flip').onclick = () => {
-    const back = board.flip();
+function showSide() {
+    const back = project.board.side === 'back';
+    board.setSide(back);
     $('flip').setAttribute('aria-pressed', String(back));
     $('flip').title = back ? 'Show the front of the board' : 'Show the back of the board';
+}
+
+$('flip').onclick = () => {
+    project.board.side = project.board.side === 'back' ? 'front' : 'back';
+    showSide();
+    scheduleSave();
 };
 
+let switchedOff = false;
 function setPower(on) {
+    switchedOff = !on;
     if (on) {
         boot();
     } else {
@@ -278,13 +258,76 @@ function setPower(on) {
 
 function showPower() {
     const on = emulator.powered;
+    board.setPowered(on);
     $('power').setAttribute('aria-pressed', String(on));
     $('power-label').textContent = on ? 'On' : 'Off';
-    $('stop').disabled = !on;
     $('reset').disabled = !on;
 }
 
 $('power').onclick = () => setPower(!emulator.powered);
+
+function showCard() {
+    const inserted = project.board.card.inserted;
+    emulator.setCardInserted(inserted);
+    board.setCardInserted(inserted);
+}
+
+function setCardInserted(inserted) {
+    const card = project.board.card;
+    if (inserted && card.sectors === 0) {
+        project.board.card = { ...formattedCard(card.sizeGB), inserted };
+        emulator.replaceCard(project.board.card);
+    } else {
+        card.inserted = inserted;
+    }
+    showCard();
+    scheduleSave();
+}
+
+function replaceCard(sizeGB, formatted, question) {
+    if (!confirm(question)) return;
+    const card = formatted ? formattedCard(sizeGB) : blankCard(sizeGB);
+    project.board.card = { ...card, inserted: project.board.card.inserted };
+    emulator.replaceCard(project.board.card);
+    scheduleSave();
+}
+
+emulator.addEventListener('sd-blocks', (event) => {
+    for (const [index, data] of event.detail) {
+        project.board.card.blocks.set(index, data);
+    }
+    scheduleSave();
+});
+
+const boardMenu = new Menu();
+$('board-more').onclick = () => {
+    const card = project.board.card;
+    boardMenu.open($('board-more'), [
+        { heading: `microSD card · ${card.inserted ? 'in the slot' : 'not inserted'}` },
+        { label: card.inserted ? 'Eject card' : 'Insert card', run: () => setCardInserted(!card.inserted) },
+        null,
+        { heading: 'Card size' },
+        ...CARD_SIZES_GB.map((sizeGB) => ({
+            label: `${sizeGB} GB`,
+            checked: card.sizeGB === sizeGB,
+            run: () => {
+                if (sizeGB !== card.sizeGB) {
+                    replaceCard(sizeGB, true, `Swap in a new ${sizeGB} GB card? Everything on the current card is lost.`);
+                }
+            },
+        })),
+        null,
+        {
+            label: 'Format card (FAT32)',
+            run: () => replaceCard(card.sizeGB, true, 'Format the card? Everything on it is lost.'),
+        },
+        {
+            label: 'Erase card (unformatted)',
+            danger: true,
+            run: () => replaceCard(card.sizeGB, false, 'Erase the card completely, leaving it unformatted?'),
+        },
+    ]);
+};
 
 const terminal = new Terminal({
     convertEol: false,
@@ -303,25 +346,128 @@ terminal.onData((data) => emulator.sendSerial(encoder.encode(data)));
 emulator.addEventListener('serial', (event) => terminal.write(event.detail));
 $('clear-console').onclick = () => terminal.clear();
 
-const examples = $('examples');
-for (const example of EXAMPLES) {
-    const option = document.createElement('option');
-    option.value = example.id;
-    option.textContent = example.title;
-    examples.append(option);
+const CONSOLE_KEY = 'cyd-console-hidden';
+function showConsole(shown) {
+    $('console-pane').classList.toggle('collapsed', !shown);
+    $('toggle-console').textContent = shown ? 'Hide' : 'Show';
+    $('toggle-console').setAttribute('aria-expanded', String(shown));
+    try {
+        localStorage.setItem(CONSOLE_KEY, shown ? '0' : '1');
+    } catch {
+    }
+    if (shown) {
+        requestAnimationFrame(() => fit.fit());
+    }
 }
-examples.onchange = () => {
-    const id = examples.value;
-    examples.value = '';
-    if (!id) return;
-    if (!confirm('Replace the files in this project with the example? Your settings.toml is kept.')) return;
-    project.loadExample(id);
-    project.save();
+$('toggle-console').onclick = () => showConsole($('console-pane').classList.contains('collapsed'));
+let consoleHidden = false;
+try {
+    consoleHidden = localStorage.getItem(CONSOLE_KEY) === '1';
+} catch {
+    consoleHidden = false;
+}
+showConsole(!consoleHidden);
+
+const nameInput = $('project-name');
+
+function showProject() {
+    if (project.newerFormat || store.newerFormat) {
+        setStatus('Saved by a newer version of this editor: changes here won\'t be saved.');
+    }
+    nameInput.value = project.name;
+    document.title = `${project.name} · CYD CircuitPython`;
+    tree.project = project;
     editorStates.clear();
     view = null;
-    openPath = '/code.py';
+    openPath = firstFile();
     reopen();
-    saveToBoard();
+    showSide();
+    board.setLight(project.board.light);
+    showCard();
+    boardFiles = null;
+    terminal.clear();
+    if (!switchedOff) {
+        flash();
+    }
+}
+
+async function switchTo(open) {
+    await saveNow();
+    project = await open();
+    showProject();
+}
+
+nameInput.addEventListener('change', () => {
+    const name = nameInput.value.trim();
+    if (!name) {
+        nameInput.value = project.name;
+        return;
+    }
+    project.name = name;
+    document.title = `${project.name} · CYD CircuitPython`;
+    saveNow();
+});
+nameInput.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter') {
+        nameInput.blur();
+    } else if (event.key === 'Escape') {
+        nameInput.value = project.name;
+        nameInput.blur();
+    }
+});
+
+const projectMenu = new Menu();
+$('project-menu').onclick = () => {
+    projectMenu.open($('project-menu'), [
+        { heading: 'Projects' },
+        ...store.projects.map(({ id, name }) => ({
+            label: name,
+            checked: id === project.id,
+            run: () => id !== project.id && switchTo(() => store.open(id)),
+        })),
+        {
+            label: '+ New project',
+            run: () =>
+                switchTo(async () => {
+                    const created = store.newProject(DEFAULT_NAME);
+                    await store.add(created);
+                    return created;
+                }),
+        },
+        null,
+        { heading: 'Examples' },
+        ...EXAMPLES.map((example) => ({
+            label: example.title,
+            run: () =>
+                switchTo(async () => {
+                    const created = store.newProject(example.title, example.id);
+                    await store.add(created);
+                    return created;
+                }),
+        })),
+        null,
+        {
+            label: 'Delete this project',
+            danger: true,
+            run: async () => {
+                if (!confirm(`Delete "${project.name}" and its files?`)) return;
+                clearTimeout(saveTimer);
+                await store.remove(project.id);
+                if (store.projects.length === 0) {
+                    project = store.newProject(DEFAULT_NAME);
+                    await store.add(project);
+                } else {
+                    project = await store.open(store.projects[0].id);
+                }
+                showProject();
+            },
+        },
+    ]);
+};
+
+const settingsMenu = new Menu();
+$('settings').onclick = () => {
+    settingsMenu.open($('settings'), [{ label: 'Reset panel sizes', run: () => panes.reset() }]);
 };
 
 $('download').onclick = async () => {
@@ -335,16 +481,13 @@ $('download').onclick = async () => {
     const blob = await zip.generateAsync({ type: 'blob' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
-    link.download = 'CIRCUITPY.zip';
+    link.download = `${project.name.replace(/[\\/:*?"<>|]+/g, '-')}.zip`;
     link.click();
     URL.revokeObjectURL(link.href);
 };
 
-openPath = project.has('/code.py') ? '/code.py' : project.list()[0].path;
-reopen();
-boot();
-showPower();
+showProject();
 
 if (import.meta.env.DEV) {
-    window.cyd = { emulator, terminal, project, tree, board };
+    window.cyd = { emulator, terminal, store, tree, board, get project() { return project; } };
 }

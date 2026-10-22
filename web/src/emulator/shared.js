@@ -19,15 +19,18 @@ export const CTRL = {
     LED_GREEN: 14, // 0..1000.
     LED_BLUE: 15, // 0..1000.
     OUTPUTS: 16, // Bumped by the worker whenever an LED or the backlight changes.
+    SD_INSERTED: 17, // 1 while a microSD card is in the slot.
+    SD_GENERATION: 18, // Bumped by the page when it puts a new card image in the SD area.
 };
 
 const CTRL_BYTES = 32 * 4;
 export const SERIAL_SIZE = 16384;
 const FB_BYTES = SCREEN_WIDTH * SCREEN_HEIGHT * 4;
 export const MAILBOX_SIZE = 4 * 1024 * 1024;
+export const SD_AREA_SIZE = 64 * 1024;
 
 export function createShared() {
-    return new SharedArrayBuffer(CTRL_BYTES + SERIAL_SIZE + FB_BYTES + MAILBOX_SIZE);
+    return new SharedArrayBuffer(CTRL_BYTES + SERIAL_SIZE + FB_BYTES + MAILBOX_SIZE + SD_AREA_SIZE);
 }
 
 export function views(sab) {
@@ -39,7 +42,38 @@ export function views(sab) {
     const framebuffer = new Uint8Array(sab, offset, FB_BYTES);
     offset += FB_BYTES;
     const mailbox = new Uint8Array(sab, offset, MAILBOX_SIZE);
-    return { ctrl, serial, framebuffer, mailbox };
+    offset += MAILBOX_SIZE;
+    const sdArea = new Uint8Array(sab, offset, SD_AREA_SIZE);
+    return { ctrl, serial, framebuffer, mailbox, sdArea };
+}
+
+export function packCard(card, area) {
+    const view = new DataView(area.buffer, area.byteOffset, area.byteLength);
+    const entries = [...card.blocks.entries()];
+    if (8 + entries.length * 516 > area.length) {
+        throw new Error('Card image is too large to hand over while running.');
+    }
+    view.setUint32(0, card.sectors, true);
+    view.setUint32(4, entries.length, true);
+    let offset = 8;
+    for (const [index, data] of entries) {
+        view.setUint32(offset, index, true);
+        area.set(data, offset + 4);
+        offset += 516;
+    }
+}
+
+export function unpackCard(area) {
+    const view = new DataView(area.buffer, area.byteOffset, area.byteLength);
+    const sectors = view.getUint32(0, true);
+    const count = view.getUint32(4, true);
+    const blocks = new Map();
+    let offset = 8;
+    for (let i = 0; i < count; i++) {
+        blocks.set(view.getUint32(offset, true), area.slice(offset + 4, offset + 516));
+        offset += 516;
+    }
+    return { sectors, blocks };
 }
 
 export function packOps(ops, mailbox) {

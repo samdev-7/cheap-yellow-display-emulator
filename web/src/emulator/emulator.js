@@ -1,4 +1,4 @@
-import { CTRL, SERIAL_SIZE, createShared, packOps, views } from './shared.js';
+import { CTRL, SERIAL_SIZE, createShared, packCard, packOps, views } from './shared.js';
 
 const MIN_TOUCH_MS = 150;
 
@@ -22,7 +22,7 @@ export class Emulator extends EventTarget {
         return this.shared.framebuffer;
     }
 
-    start(files) {
+    start(files, card) {
         this.stop();
         const ctrl = this.ctrl;
         for (const slot of [CTRL.SERIAL_HEAD, CTRL.SERIAL_TAIL, CTRL.CTRL_C, CTRL.MAILBOX_STATE]) {
@@ -35,7 +35,7 @@ export class Emulator extends EventTarget {
         this.worker.onerror = (event) => {
             this.emit('state', { running: false, message: `Emulator failed to start: ${event.message}` });
         };
-        this.worker.postMessage({ type: 'start', sab: this.sab, firmwareUrl: this.firmwareUrl, files });
+        this.worker.postMessage({ type: 'start', sab: this.sab, firmwareUrl: this.firmwareUrl, files, card });
         this.emit('state', { running: true, message: 'Starting…' });
     }
 
@@ -80,6 +80,11 @@ export class Emulator extends EventTarget {
                 }
                 this.emit('files-applied', { errors: message.errors, saved: message.saved });
                 this.flushOps();
+                break;
+            case 'sd-blocks':
+                if (message.generation === Atomics.load(this.ctrl, CTRL.SD_GENERATION)) {
+                    this.emit('sd-blocks', message.blocks);
+                }
                 break;
             case 'reset':
                 this.emit('reset-requested', { toBootloader: message.toBootloader });
@@ -157,6 +162,19 @@ export class Emulator extends EventTarget {
 
     setBootButton(pressed) {
         Atomics.store(this.ctrl, CTRL.BOOT_BUTTON, pressed ? 1 : 0);
+        this.wake();
+    }
+
+    setCardInserted(inserted) {
+        Atomics.store(this.ctrl, CTRL.SD_INSERTED, inserted ? 1 : 0);
+        this.wake();
+    }
+
+    replaceCard(card) {
+        if (this.worker) {
+            packCard(card, this.shared.sdArea);
+        }
+        Atomics.add(this.ctrl, CTRL.SD_GENERATION, 1);
         this.wake();
     }
 
