@@ -907,6 +907,36 @@ select {
     border-radius: 0.2cqw;
 }
 
+.board-tip {
+    position: absolute;
+    z-index: 5;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    transform: translate(-50%, calc(-100% - 8px));
+    padding: 6px 9px;
+    border-radius: 6px;
+    background: #1d1d1b;
+    color: #ffffff;
+    font: 12px/1.35 system-ui, sans-serif;
+    white-space: nowrap;
+    pointer-events: none;
+    box-shadow: 0 4px 12px rgb(0 0 0 / 0.2);
+}
+
+.board-tip[hidden] {
+    display: none;
+}
+
+.board-tip strong {
+    font-weight: 600;
+}
+
+.board-tip-hint {
+    color: #b9b9b4;
+    font-size: 11px;
+}
+
 .board-button:focus,
 .board-hotspot:focus {
     outline: 2px solid var(--focus);

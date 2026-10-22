@@ -70,7 +70,16 @@ export class BoardView {
         this.back.element.hidden = true;
         this.flipper.append(this.front.element, this.back.element);
 
+        this.tip = document.createElement('div');
+        this.tip.className = 'board-tip';
+        this.tip.id = 'board-tip';
+        this.tip.setAttribute('role', 'tooltip');
+        this.tip.hidden = true;
+        host.append(this.tip);
+        this.tipTarget = null;
+
         this.leds = [];
+        this.ledOutputs = { red: 0, green: 0, blue: 0 };
         this.buildFront();
         this.buildBack();
         this.buildCables();
@@ -269,7 +278,7 @@ export class BoardView {
     led(side, x, y, w, h, lensR, drawPackage) {
         const element = document.createElement('div');
         element.className = 'board-led';
-        element.title = 'RGB LED (board.LED_RED, LED_GREEN, LED_BLUE)';
+        this.attachTip(element, () => this.ledTip());
         place(element, x, y, w, h);
         const lens = document.createElement('div');
         lens.className = 'board-led-lens';
@@ -291,7 +300,16 @@ export class BoardView {
         return state;
     }
 
+    ledTip() {
+        const { red, green, blue } = this.ledOutputs;
+        const percent = (value) => `${Math.round(value * 100)}%`;
+        const state = Math.max(red, green, blue) > 0 ? `Red ${percent(red)} · Green ${percent(green)} · Blue ${percent(blue)}` : 'Off';
+        return ['RGB LED', state, 'board.LED_RED, LED_GREEN, LED_BLUE'];
+    }
+
     showLeds(out) {
+        this.ledOutputs = out;
+        this.refreshTip();
         const level = Math.max(out.red, out.green, out.blue);
         for (const { element, lens, bloom } of this.leds) {
             if (level <= 0) {
@@ -323,6 +341,8 @@ export class BoardView {
         dial.append(value);
 
         let level = 70;
+        let reading = null;
+        this.attachTip(dial, () => ['Light sensor', `${reading.lux} · AnalogIn reads ${reading.value}`, 'Drag, scroll or use the arrow keys']);
         const set = (next, fromUser = true) => {
             level = Math.max(0, Math.min(100, Math.round(next)));
             dial.style.setProperty('--level', `${level}%`);
@@ -330,7 +350,9 @@ export class BoardView {
             const mv = Math.round(lightSensorMillivolts(level));
             this.emulator.setLightSensorMillivolts(mv);
             value.textContent = String(level);
-            dial.title = `Light: ${formatLux(lightLux(level))} (AnalogIn reads about ${analogInValue(mv)})`;
+            reading = { lux: formatLux(lightLux(level)), value: analogInValue(mv) };
+            dial.setAttribute('aria-valuetext', `${reading.lux}, AnalogIn reads ${reading.value}`);
+            this.refreshTip();
             if (fromUser) {
                 this.onLight?.(level);
             }
@@ -413,6 +435,54 @@ export class BoardView {
         this.front.element.hidden = back;
         this.back.element.hidden = !back;
         return back;
+    }
+
+    attachTip(target, lines) {
+        target.addEventListener('pointerenter', () => this.showTip(target, lines));
+        target.addEventListener('pointerleave', () => this.hideTip(target));
+        target.addEventListener('focus', () => this.showTip(target, lines));
+        target.addEventListener('blur', () => this.hideTip(target));
+        if (target.tabIndex >= 0) {
+            target.setAttribute('aria-describedby', this.tip.id);
+        }
+    }
+
+    showTip(target, lines) {
+        this.tipTarget = target;
+        this.tipLines = lines;
+        this.tip.hidden = false;
+        this.refreshTip();
+    }
+
+    hideTip(target) {
+        if (this.tipTarget !== target || target.matches(':hover') || document.activeElement === target) return;
+        this.tipTarget = null;
+        this.tip.hidden = true;
+    }
+
+    refreshTip() {
+        if (!this.tipTarget) return;
+        const [title, ...details] = this.tipLines();
+        const text = [title, ...details].join('\n');
+        if (text !== this.tipText) {
+            this.tipText = text;
+            this.tip.replaceChildren();
+            const heading = document.createElement('strong');
+            heading.textContent = title;
+            this.tip.append(heading);
+            details.forEach((detail, index) => {
+                const line = document.createElement('span');
+                line.textContent = detail;
+                if (index === details.length - 1 && details.length > 1) line.className = 'board-tip-hint';
+                this.tip.append(line);
+            });
+        }
+        const host = this.host.getBoundingClientRect();
+        const target = this.tipTarget.getBoundingClientRect();
+        const half = this.tip.offsetWidth / 2;
+        const centre = target.left + target.width / 2 - host.left;
+        this.tip.style.left = `${Math.min(Math.max(centre, half + 4), host.width - half - 4)}px`;
+        this.tip.style.top = `${target.top - host.top}px`;
     }
 
     render() {
