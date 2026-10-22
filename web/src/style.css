@@ -851,7 +851,8 @@ select {
     cursor: pointer;
 }
 
-.board-cable-hotspot {
+.board-cable-hotspot,
+.board-cable-hotspot:hover {
     position: absolute;
     padding: 0;
     border: 0;

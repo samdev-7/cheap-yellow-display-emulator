@@ -59,7 +59,7 @@ class Touch:
         if not self.touched:
             return None
         x, y, z = self.read_raw()
-        if z < self.pressure:
+        if z < self.pressure or not self.touched:
             return None
         sx = (x - X_MIN) * (self.width - 1) // (X_MAX - X_MIN)
         sy = (y - Y_MIN) * (self.height - 1) // (Y_MAX - Y_MIN)
