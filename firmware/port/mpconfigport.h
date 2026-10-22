@@ -25,6 +25,8 @@
 
 #define INTERNAL_FLASH_FILESYSTEM_SIZE      (1216 * 1024)
 
+#define CIRCUITPY_INTERNAL_NVM_SIZE         (8 * 1024)
+
 extern uint32_t wasm_vm_opcodes;
 extern uint32_t wasm_vm_calls;
 #define MICROPY_VM_HOOK_OPCODE(op) do { \

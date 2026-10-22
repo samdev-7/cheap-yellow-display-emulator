@@ -79,6 +79,7 @@ export function defaultBoardState() {
         light: 70,
         card: { inserted: false, sizeGB: 8, sectors: 0, blocks: new Map() },
         wifi: { inRange: true, passwordAccepted: true, internet: true, connectInstantly: true },
+        nvm: null,
     };
 }
 

@@ -66,4 +66,15 @@ bool wasm_net_readable(int id);
 void wasm_net_close(int id);
 void wasm_net_reset(void);
 
+void wasm_nvm_read(uint32_t offset, uint8_t *buf, uint32_t len);
+void wasm_nvm_write(uint32_t offset, const uint8_t *buf, uint32_t len);
+void wasm_sleep_memory_read(uint32_t offset, uint8_t *buf, uint32_t len);
+void wasm_sleep_memory_write(uint32_t offset, const uint8_t *buf, uint32_t len);
+
+int wasm_hal_reset_reason(void);
+void wasm_hal_restart(int reason);
+
+int wasm_alarm_wake(uint32_t *pin, uint32_t *value);
+void wasm_alarm_deep_sleep(int32_t time_ms, const uint8_t *pins, const uint8_t *values, uint32_t count);
+
 void wasm_hal_reset(int to_bootloader);

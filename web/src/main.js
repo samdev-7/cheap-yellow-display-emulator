@@ -17,6 +17,7 @@ import { DEFAULT_NAME, EXAMPLES, ProjectStore, normalisePath } from './project.j
 import { NetworkProxy } from './net/proxy.js';
 import { NetworkBridge } from './net/network.js';
 import { WIFI_MODE } from './emulator/network.js';
+import { RESET_REASON } from './emulator/shared.js';
 import { BoardView } from './ui/boardView.js';
 import { FileTree } from './ui/fileTree.js';
 import { Menu } from './ui/menu.js';
@@ -43,11 +44,12 @@ const panes = initSplitters($('workspace'));
 let saveTimer = 0;
 function scheduleSave() {
     clearTimeout(saveTimer);
-    saveTimer = setTimeout(() => store.save(project), 300);
+    saveTimer = setTimeout(() => saveNow(), 300);
 }
 
 function saveNow() {
     clearTimeout(saveTimer);
+    project.board.nvm = emulator.nvmSnapshot();
     return store.save(project);
 }
 
@@ -204,12 +206,12 @@ function reopen() {
     tree.render();
 }
 
-function boot() {
+function boot(options = {}) {
     if (!boardFiles) {
         flash();
         return;
     }
-    emulator.start(boardFiles, project.board.card);
+    emulator.start(boardFiles, project.board.card, options);
     showPower();
 }
 
@@ -227,7 +229,10 @@ emulator.addEventListener('files-applied', (event) => {
     setStatus(errors ? `${errors} file(s) didn't fit on CIRCUITPY (the drive is full)` : 'Running');
 });
 
-emulator.addEventListener('reset-requested', () => boot());
+emulator.addEventListener('reset-requested', (event) => boot({ reason: event.detail.reason ?? RESET_REASON.POWER_ON }));
+emulator.addEventListener('wake-requested', (event) => boot({ reason: RESET_REASON.DEEP_SLEEP_ALARM, wake: event.detail.wake }));
+
+emulator.addEventListener('nvm', () => scheduleSave());
 
 emulator.addEventListener('speed', (event) => {
     const { ratio } = event.detail;
@@ -347,6 +352,15 @@ $('board-more').onclick = () => {
     boardMenu.open($('board-more'), [
         { label: 'Wi-Fi', detail: wifiSummary(), submenu: wifiItems },
         { label: 'microSD card', detail: cardSummary(), submenu: cardItems },
+        {
+            label: 'Clear NVM',
+            detail: project.board.nvm?.some((byte) => byte !== 0) ? 'In use' : 'Empty',
+            run: () => {
+                if (!confirm('Clear microcontroller.nvm? Everything the board saved there is lost.')) return;
+                emulator.setNvm(null);
+                saveNow();
+            },
+        },
         null,
         { label: fullscreen ? 'Exit full screen' : 'Full screen', run: () => setFullscreen(!fullscreen) },
     ]);
@@ -465,6 +479,7 @@ function showProject() {
     board.setLight(project.board.light);
     showCard();
     showWifi();
+    emulator.setNvm(project.board.nvm);
     boardFiles = null;
     terminal.clear();
     if (!switchedOff) {

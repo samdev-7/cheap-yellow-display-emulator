@@ -578,6 +578,18 @@ async function createWasm() {
 
   var _wasm_adc_read = (pin) => Module.hal.adcRead(pin);
 
+  var _wasm_alarm_deep_sleep = (timeMs, pinsPtr, valuesPtr, count) =>
+          Module.hal.deepSleep(timeMs, [...HEAPU8.subarray(pinsPtr, pinsPtr + count)], [...HEAPU8.subarray(valuesPtr, valuesPtr + count)]);
+
+  var _wasm_alarm_wake = (pinPtr, valuePtr) => {
+          const wake = Module.hal.wakeAlarm();
+          if (wake.kind === 2) {
+              HEAPU32[pinPtr >> 2] = wake.pin;
+              HEAPU32[valuePtr >> 2] = wake.value;
+          }
+          return wake.kind;
+      };
+
   var _wasm_dac_write = (pin, value) => Module.hal.dacWrite(pin, value);
 
   var _wasm_flash_dirty = (offset, len) => Module.hal.flashDirty(offset, len);
@@ -658,7 +670,9 @@ async function createWasm() {
 
   var _wasm_hal_now_us = () => Module.hal.nowUs();
 
-  var _wasm_hal_reset = (toBootloader) => Module.hal.reset(toBootloader !== 0);
+  var _wasm_hal_reset_reason = () => Module.hal.resetReason();
+
+  var _wasm_hal_restart = (reason) => Module.hal.restart(reason);
 
   var _wasm_hal_vm_counters = (opcodes, calls) => Module.hal.vmCounters(() => HEAPU32[opcodes >> 2], () => HEAPU32[calls >> 2]);
 
@@ -714,6 +728,10 @@ async function createWasm() {
 
   var _wasm_net_socket = (udp) => Module.hal.net.socket(udp !== 0);
 
+  var _wasm_nvm_read = (offset, ptr, len) => Module.hal.nvmRead(offset, HEAPU8.subarray(ptr, ptr + len));
+
+  var _wasm_nvm_write = (offset, ptr, len) => Module.hal.nvmWrite(offset, HEAPU8.subarray(ptr, ptr + len));
+
   var _wasm_pwm_set = (pin, duty, frequency) => Module.hal.pwmSet(pin, duty, frequency >>> 0);
 
   var _wasm_random_fill = (ptr, len) => {
@@ -732,6 +750,10 @@ async function createWasm() {
   var _wasm_serial_read = () => Module.hal.serialRead();
 
   var _wasm_serial_write = (ptr, len) => Module.hal.serialWrite(HEAPU8.slice(ptr, ptr + len));
+
+  var _wasm_sleep_memory_read = (offset, ptr, len) => Module.hal.sleepMemoryRead(offset, HEAPU8.subarray(ptr, ptr + len));
+
+  var _wasm_sleep_memory_write = (offset, ptr, len) => Module.hal.sleepMemoryWrite(offset, HEAPU8.subarray(ptr, ptr + len));
 
   var _wasm_spi_config = (sck, mosi, miso, baudrate, polarity, phase) =>
           Module.hal.spiConfig(sck, mosi, miso, baudrate >>> 0, polarity, phase);
@@ -872,6 +894,10 @@ var wasmImports = {
   /** @export */
   wasm_adc_read: _wasm_adc_read,
   /** @export */
+  wasm_alarm_deep_sleep: _wasm_alarm_deep_sleep,
+  /** @export */
+  wasm_alarm_wake: _wasm_alarm_wake,
+  /** @export */
   wasm_dac_write: _wasm_dac_write,
   /** @export */
   wasm_flash_dirty: _wasm_flash_dirty,
@@ -896,7 +922,9 @@ var wasmImports = {
   /** @export */
   wasm_hal_now_us: _wasm_hal_now_us,
   /** @export */
-  wasm_hal_reset: _wasm_hal_reset,
+  wasm_hal_reset_reason: _wasm_hal_reset_reason,
+  /** @export */
+  wasm_hal_restart: _wasm_hal_restart,
   /** @export */
   wasm_hal_vm_counters: _wasm_hal_vm_counters,
   /** @export */
@@ -926,6 +954,10 @@ var wasmImports = {
   /** @export */
   wasm_net_socket: _wasm_net_socket,
   /** @export */
+  wasm_nvm_read: _wasm_nvm_read,
+  /** @export */
+  wasm_nvm_write: _wasm_nvm_write,
+  /** @export */
   wasm_pwm_set: _wasm_pwm_set,
   /** @export */
   wasm_random_fill: _wasm_random_fill,
@@ -937,6 +969,10 @@ var wasmImports = {
   wasm_serial_read: _wasm_serial_read,
   /** @export */
   wasm_serial_write: _wasm_serial_write,
+  /** @export */
+  wasm_sleep_memory_read: _wasm_sleep_memory_read,
+  /** @export */
+  wasm_sleep_memory_write: _wasm_sleep_memory_write,
   /** @export */
   wasm_spi_config: _wasm_spi_config,
   /** @export */

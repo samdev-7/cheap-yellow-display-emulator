@@ -23,6 +23,17 @@ export const CTRL = {
     SD_GENERATION: 18, // Bumped by the page when it puts a new card image in the SD area.
     WIFI_MODE: 19, // Wi-Fi conditions from the board menu (network.js WIFI_MODE bits).
     WIFI_DROP: 20, // Bumped by the page to drop the board's Wi-Fi connection.
+    RESET_REASON: 21, // Why the board started (RESET_REASON), set by the page.
+    WAKE_KIND: 22, // What woke it from deep sleep: 0 nothing, 1 a time alarm, 2 a pin.
+    WAKE_PIN: 23, // For a pin: which GPIO,
+    WAKE_VALUE: 24, // and at which level.
+};
+
+export const RESET_REASON = {
+    POWER_ON: 0, // Also the RST button: on the ESP32, its EN pin is a power-on reset.
+    SOFTWARE: 2,
+    DEEP_SLEEP_ALARM: 3,
+    WATCHDOG: 5,
 };
 
 const CTRL_BYTES = 32 * 4;
@@ -30,9 +41,11 @@ export const SERIAL_SIZE = 16384;
 const FB_BYTES = SCREEN_WIDTH * SCREEN_HEIGHT * 4;
 export const MAILBOX_SIZE = 4 * 1024 * 1024;
 export const SD_AREA_SIZE = 64 * 1024;
+export const NVM_SIZE = 8 * 1024;
+export const SLEEP_MEMORY_SIZE = 3 * 1024;
 
 export function createShared() {
-    return new SharedArrayBuffer(CTRL_BYTES + SERIAL_SIZE + FB_BYTES + MAILBOX_SIZE + SD_AREA_SIZE);
+    return new SharedArrayBuffer(CTRL_BYTES + SERIAL_SIZE + FB_BYTES + MAILBOX_SIZE + SD_AREA_SIZE + NVM_SIZE + SLEEP_MEMORY_SIZE);
 }
 
 export function views(sab) {
@@ -46,7 +59,11 @@ export function views(sab) {
     const mailbox = new Uint8Array(sab, offset, MAILBOX_SIZE);
     offset += MAILBOX_SIZE;
     const sdArea = new Uint8Array(sab, offset, SD_AREA_SIZE);
-    return { ctrl, serial, framebuffer, mailbox, sdArea };
+    offset += SD_AREA_SIZE;
+    const nvm = new Uint8Array(sab, offset, NVM_SIZE);
+    offset += NVM_SIZE;
+    const sleepMemory = new Uint8Array(sab, offset, SLEEP_MEMORY_SIZE);
+    return { ctrl, serial, framebuffer, mailbox, sdArea, nvm, sleepMemory };
 }
 
 export function packCard(card, area) {

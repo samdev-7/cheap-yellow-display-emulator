@@ -8,7 +8,7 @@ const OUTPUT_FLUSH_BYTES = 4096;
 const SD_SYNC_MS = 500;
 
 export function createHal(shared, files, post, card, { realSpeed = true, costScale = 1 } = {}) {
-    const { ctrl, serial, mailbox, sdArea } = shared;
+    const { ctrl, serial, mailbox, sdArea, nvm, sleepMemory } = shared;
     const board = new CYDBoard(shared, card);
     board.reset();
 
@@ -27,6 +27,20 @@ export function createHal(shared, files, post, card, { realSpeed = true, costSca
             post({ type: 'sd-blocks', generation: sdGeneration, blocks });
         }
         lastSdSync = performance.now();
+    };
+
+    let nvmDirty = false;
+    const syncNvm = () => {
+        if (nvmDirty) {
+            nvmDirty = false;
+            post({ type: 'nvm' });
+        }
+    };
+
+    const halt = () => {
+        for (;;) {
+            Atomics.wait(ctrl, CTRL.WAKE, Atomics.load(ctrl, CTRL.WAKE));
+        }
     };
 
     const start = performance.now();
@@ -56,6 +70,7 @@ export function createHal(shared, files, post, card, { realSpeed = true, costSca
         flush();
         if (performance.now() - lastSdSync > SD_SYNC_MS) {
             syncCard();
+            syncNvm();
         }
         Atomics.wait(ctrl, CTRL.WAKE, Atomics.load(ctrl, CTRL.WAKE), ms);
     };
@@ -93,15 +108,37 @@ export function createHal(shared, files, post, card, { realSpeed = true, costSca
             }
             if (now - lastSdSync > SD_SYNC_MS) {
                 syncCard();
+                syncNvm();
             }
         },
         reset: (toBootloader) => {
             flush();
             post({ type: 'reset', toBootloader });
-            for (;;) {
-                Atomics.wait(ctrl, CTRL.WAKE, Atomics.load(ctrl, CTRL.WAKE));
-            }
+            halt();
         },
+        restart: (reason) => {
+            hal.flush();
+            post({ type: 'restart', reason });
+            halt();
+        },
+        resetReason: () => Atomics.load(ctrl, CTRL.RESET_REASON),
+        wakeAlarm: () => ({
+            kind: Atomics.load(ctrl, CTRL.WAKE_KIND),
+            pin: Atomics.load(ctrl, CTRL.WAKE_PIN),
+            value: Atomics.load(ctrl, CTRL.WAKE_VALUE),
+        }),
+        deepSleep: (timeMs, pins, values) => {
+            hal.flush();
+            post({ type: 'deep-sleep', timeMs, pins, values });
+            halt();
+        },
+        nvmRead: (offset, into) => into.set(nvm.subarray(offset, offset + into.length)),
+        nvmWrite: (offset, data) => {
+            nvm.set(data, offset);
+            nvmDirty = true;
+        },
+        sleepMemoryRead: (offset, into) => into.set(sleepMemory.subarray(offset, offset + into.length)),
+        sleepMemoryWrite: (offset, data) => sleepMemory.set(data, offset),
 
         serialWrite: (bytes) => {
             output.push(bytes);
@@ -186,6 +223,7 @@ export function createHal(shared, files, post, card, { realSpeed = true, costSca
     hal.flush = () => {
         flush();
         syncCard();
+        syncNvm();
     };
     return hal;
 }

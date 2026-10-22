@@ -7,6 +7,8 @@
 
 #include "py/runtime.h"
 #include "shared-bindings/microcontroller/Processor.h"
+
+#include "wasm_hal.h"
 #include "shared-bindings/microcontroller/ResetReason.h"
 
 static uint32_t _frequency_mhz = 240;
@@ -51,5 +53,5 @@ void common_hal_mcu_processor_get_uid(uint8_t raw_id[]) {
 }
 
 mcu_reset_reason_t common_hal_mcu_processor_get_reset_reason(void) {
-    return MCU_RESET_REASON_POWER_ON;
+    return (mcu_reset_reason_t)wasm_hal_reset_reason();
 }

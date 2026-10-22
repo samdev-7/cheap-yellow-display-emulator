@@ -123,6 +123,23 @@ addToLibrary({
     wasm_net_close: (id) => Module.hal.net.close(id),
     wasm_net_reset: () => Module.hal.net.reset(),
 
+    wasm_nvm_read: (offset, ptr, len) => Module.hal.nvmRead(offset, HEAPU8.subarray(ptr, ptr + len)),
+    wasm_nvm_write: (offset, ptr, len) => Module.hal.nvmWrite(offset, HEAPU8.subarray(ptr, ptr + len)),
+    wasm_sleep_memory_read: (offset, ptr, len) => Module.hal.sleepMemoryRead(offset, HEAPU8.subarray(ptr, ptr + len)),
+    wasm_sleep_memory_write: (offset, ptr, len) => Module.hal.sleepMemoryWrite(offset, HEAPU8.subarray(ptr, ptr + len)),
+    wasm_hal_reset_reason: () => Module.hal.resetReason(),
+    wasm_hal_restart: (reason) => Module.hal.restart(reason),
+    wasm_alarm_wake: (pinPtr, valuePtr) => {
+        const wake = Module.hal.wakeAlarm();
+        if (wake.kind === 2) {
+            HEAPU32[pinPtr >> 2] = wake.pin;
+            HEAPU32[valuePtr >> 2] = wake.value;
+        }
+        return wake.kind;
+    },
+    wasm_alarm_deep_sleep: (timeMs, pinsPtr, valuesPtr, count) =>
+        Module.hal.deepSleep(timeMs, [...HEAPU8.subarray(pinsPtr, pinsPtr + count)], [...HEAPU8.subarray(valuesPtr, valuesPtr + count)]),
+
     wasm_flash_load: (ptr, len) => Module.hal.flashLoad(HEAPU8.subarray(ptr, ptr + len)),
     wasm_flash_dirty: (offset, len) => Module.hal.flashDirty(offset, len),
 });

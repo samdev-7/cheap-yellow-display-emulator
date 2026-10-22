@@ -17,6 +17,11 @@
 #include "shared-bindings/microcontroller/__init__.h"
 #include "shared-bindings/rtc/__init__.h"
 #include "shared-bindings/socketpool/__init__.h"
+#include "shared-bindings/microcontroller/ResetReason.h"
+#if CIRCUITPY_WATCHDOG
+#include "common-hal/watchdog/WatchDogTimer.h"
+#include "shared-module/watchdog/__init__.h"
+#endif
 
 #include "background.h"
 #include "wasm_hal.h"
@@ -48,6 +53,10 @@ void reset_port(void) {
     #if CIRCUITPY_SOCKETPOOL
     socketpool_user_reset();
     #endif
+
+    #if CIRCUITPY_WATCHDOG
+    watchdog_reset();
+    #endif
 }
 
 void reset_to_bootloader(void) {
@@ -58,7 +67,7 @@ void reset_to_bootloader(void) {
 }
 
 void reset_cpu(void) {
-    wasm_hal_reset(0);
+    wasm_hal_restart(MCU_RESET_REASON_SOFTWARE);
     for (;;) {
         wasm_hal_idle(1000);
     }
@@ -121,6 +130,9 @@ static void _poll_interrupts(void) {
         }
     }
     wasm_hal_background();
+    #if CIRCUITPY_WATCHDOG
+    watchdog_check();
+    #endif
 }
 
 void port_idle_until_interrupt(void) {

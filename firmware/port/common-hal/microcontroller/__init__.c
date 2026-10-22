@@ -16,6 +16,14 @@
 #include "supervisor/port.h"
 #include "supervisor/shared/safe_mode.h"
 
+#if CIRCUITPY_INTERNAL_NVM_SIZE > 0
+#include "common-hal/nvm/ByteArray.h"
+#include "shared-bindings/nvm/ByteArray.h"
+#endif
+#if CIRCUITPY_WATCHDOG
+#include "common-hal/watchdog/WatchDogTimer.h"
+#endif
+
 void common_hal_mcu_delay_us(uint32_t delay) {
     mp_hal_delay_us(delay);
 }
@@ -58,6 +66,25 @@ void MP_NORETURN common_hal_mcu_reset(void) {
 
 // The singleton microcontroller.Processor object, bound to microcontroller.cpu
 // It currently only has properties, and no state.
+#if CIRCUITPY_INTERNAL_NVM_SIZE > 0
+const nvm_bytearray_obj_t common_hal_mcu_nvm_obj = {
+    .base = {
+        .type = &nvm_bytearray_type,
+    },
+    .len = CIRCUITPY_INTERNAL_NVM_SIZE,
+};
+#endif
+
+#if CIRCUITPY_WATCHDOG
+watchdog_watchdogtimer_obj_t common_hal_mcu_watchdogtimer_obj = {
+    .base = {
+        .type = &watchdog_watchdogtimer_type,
+    },
+    .timeout = 0.0f,
+    .mode = WATCHDOGMODE_NONE,
+};
+#endif
+
 const mcu_processor_obj_t common_hal_mcu_processor_obj = {
     .base = {
         .type = &mcu_processor_type,
