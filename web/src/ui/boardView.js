@@ -51,8 +51,8 @@ function srgb(linear) {
 }
 
 function formatLux(lux) {
-    if (lux === 0) return 'dark';
-    return `${lux < 10 ? lux.toPrecision(1) : Math.round(lux).toLocaleString()} lux`;
+    if (lux === 0) return '0 lux';
+    return `${lux < 10 ? Number(lux.toPrecision(2)) : Math.round(lux).toLocaleString()} lux`;
 }
 
 const BOOT_TAP_MS = 200;

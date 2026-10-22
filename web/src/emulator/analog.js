@@ -7,11 +7,14 @@ const LDR_DARK = 5e5;
 const LDR_GAMMA = 0.6;
 
 export function lightLux(level) {
-    return level <= 0 ? 0 : 10 ** (-1 + (level / 100) * 5);
+    return level <= 0 ? 0 : LUX_LOW * (LUX_HIGH / LUX_LOW) ** ((level - 1) / 99);
 }
 
 export function lightSensorMillivolts(level) {
-    const lux = lightLux(level);
+    return millivoltsAt(lightLux(level));
+}
+
+function millivoltsAt(lux) {
     const ldr = lux > 0 ? Math.min(LDR_DARK, LDR_AT_10_LUX * (lux / 10) ** -LDR_GAMMA) : LDR_DARK;
     const lower = (R19 * ldr) / (R19 + ldr);
     return (SUPPLY_MV * lower) / (R15 + lower);
@@ -63,4 +66,20 @@ export function adcMillivolts(mv) {
 
 export function analogInValue(mv) {
     return Math.floor((adcMillivolts(mv) * 65535) / 3300);
+}
+
+const LUX_DARKEST = 10 * (LDR_DARK / LDR_AT_10_LUX) ** (-1 / LDR_GAMMA);
+const LUX_FLOOR = luxForMillivolts(COEFF_B);
+const LUX_LOW = LUX_DARKEST * 0.8;
+const LUX_HIGH = LUX_FLOOR * 1.25;
+
+function luxForMillivolts(mv) {
+    let low = LUX_DARKEST;
+    let high = 1e5;
+    for (let i = 0; i < 60; i++) {
+        const middle = Math.sqrt(low * high);
+        if (millivoltsAt(middle) > mv) low = middle;
+        else high = middle;
+    }
+    return high;
 }
