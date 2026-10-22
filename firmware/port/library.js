@@ -67,7 +67,7 @@ addToLibrary({
     wasm_wifi_connect__deps: ['$UTF8ToString'],
     wasm_wifi_connect: (ptr, len) => Module.hal.net.join(UTF8ToString(ptr, len)),
     wasm_wifi_disconnect: () => Module.hal.net.leave(),
-    wasm_wifi_real_timing: () => (Module.hal.net.realTiming() ? 1 : 0),
+    wasm_wifi_delay_ms: (kind) => Module.hal.net.delay(kind),
     wasm_wifi_connected: () => (Module.hal.net.isConnected() ? 1 : 0),
     wasm_wifi_scan__deps: ['$writeNetwork'],
     wasm_wifi_scan: (index, ssidPtr, infoPtr) => {

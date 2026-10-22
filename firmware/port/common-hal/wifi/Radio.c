@@ -91,9 +91,7 @@ mp_obj_t common_hal_wifi_radio_start_scanning_networks(wifi_radio_obj_t *self, u
     if (!self->enabled) {
         mp_raise_RuntimeError(MP_ERROR_TEXT("Wifi is not enabled"));
     }
-    if (wasm_wifi_real_timing()) {
-        mp_hal_delay_ms(300);
-    }
+    mp_hal_delay_ms(wasm_wifi_delay_ms(WASM_WIFI_DELAY_SCAN));
     wifi_scannednetworks_obj_t *scan = mp_obj_malloc(wifi_scannednetworks_obj_t, &wifi_scannednetworks_type);
     scan->next = 0;
     scan->done = false;
@@ -148,8 +146,9 @@ wifi_radio_error_t common_hal_wifi_radio_connect(wifi_radio_obj_t *self, uint8_t
     if (!self->enabled) {
         mp_raise_RuntimeError(MP_ERROR_TEXT("Wifi is not enabled"));
     }
+    uint32_t delay = wasm_wifi_delay_ms(WASM_WIFI_DELAY_JOIN);
     uint64_t start = supervisor_ticks_ms64();
-    while (wasm_wifi_real_timing() && supervisor_ticks_ms64() - start < 800) {
+    while (supervisor_ticks_ms64() - start < delay) {
         RUN_BACKGROUND_TASKS;
         if (mp_hal_is_interrupted()) {
             return WIFI_RADIO_ERROR_UNSPECIFIED;
@@ -260,8 +259,8 @@ mp_int_t common_hal_wifi_radio_ping(wifi_radio_obj_t *self, mp_obj_t ip_address,
     if (!common_hal_wifi_radio_get_connected(self)) {
         return -1;
     }
-    if (wasm_wifi_real_timing()) {
-        mp_hal_delay_ms(20);
-    }
-    return 20;
+    // round trip.
+    uint32_t delay = wasm_wifi_delay_ms(WASM_WIFI_DELAY_PING);
+    mp_hal_delay_ms(delay);
+    return delay ? delay : 20;
 }

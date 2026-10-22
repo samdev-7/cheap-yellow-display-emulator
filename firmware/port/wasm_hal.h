@@ -44,7 +44,10 @@ void wasm_flash_dirty(uint32_t offset, uint32_t len);
 void wasm_wifi_set_home(const char *ssid, uint32_t len);
 int wasm_wifi_connect(const char *ssid, uint32_t len);
 void wasm_wifi_disconnect(void);
-bool wasm_wifi_real_timing(void);
+#define WASM_WIFI_DELAY_JOIN 0
+#define WASM_WIFI_DELAY_SCAN 1
+#define WASM_WIFI_DELAY_PING 2
+uint32_t wasm_wifi_delay_ms(int kind);
 bool wasm_wifi_connected(void);
 int wasm_wifi_scan(uint32_t index, char *ssid, int32_t *info);
 void wasm_wifi_ap_info(char *ssid, int32_t *info);

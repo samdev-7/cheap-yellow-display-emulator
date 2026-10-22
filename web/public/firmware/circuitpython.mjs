@@ -759,9 +759,9 @@ async function createWasm() {
 
   var _wasm_wifi_connected = () => (Module.hal.net.isConnected() ? 1 : 0);
 
-  var _wasm_wifi_disconnect = () => Module.hal.net.leave();
+  var _wasm_wifi_delay_ms = (kind) => Module.hal.net.delay(kind);
 
-  var _wasm_wifi_real_timing = () => (Module.hal.net.realTiming() ? 1 : 0);
+  var _wasm_wifi_disconnect = () => Module.hal.net.leave();
 
   var _wasm_wifi_scan = (index, ssidPtr, infoPtr) => {
           const network = Module.hal.net.scan()[index];
@@ -944,9 +944,9 @@ var wasmImports = {
   /** @export */
   wasm_wifi_connected: _wasm_wifi_connected,
   /** @export */
-  wasm_wifi_disconnect: _wasm_wifi_disconnect,
+  wasm_wifi_delay_ms: _wasm_wifi_delay_ms,
   /** @export */
-  wasm_wifi_real_timing: _wasm_wifi_real_timing,
+  wasm_wifi_disconnect: _wasm_wifi_disconnect,
   /** @export */
   wasm_wifi_scan: _wasm_wifi_scan,
   /** @export */

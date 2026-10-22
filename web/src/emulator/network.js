@@ -27,8 +27,17 @@ export const WIFI_MODE = {
     NO_NETWORKS: 1, // No networks in range: scans are empty, connecting fails.
     WRONG_PASSWORD: 2, // Connecting fails as if the password were wrong.
     NO_INTERNET: 4, // Connected, but nothing beyond the router answers.
-    REAL_TIMING: 8, // Joining and scanning take as long as on the real radio.
+    REAL_TIMING: 8, // Joining, scanning and local replies take real, varying time.
 };
+
+const TIMING = {
+    join: [1800, 3500], // Authenticate with the router, then DHCP.
+    scan: [1500, 2800], // Listen on each of the 13 channels.
+    ping: [5, 50],
+    lookup: [10, 60], // A name already looked up, answered from the cache.
+    ntp: [20, 80],
+};
+const DELAY_KINDS = ['join', 'scan', 'ping'];
 
 const NEIGHBOURS = [
     { ssid: 'Neighbours 2.4G', rssi: -71, channel: 1, authmode: 'wpa2' },
@@ -48,6 +57,7 @@ export class Network {
         this.nextSocket = 1;
         this.nextRequest = 1;
         this.lookups = new Map(); // host -> { answer } while a lookup is out.
+        this.cacheWaits = new Map(); // host -> when a cached answer is ready.
         this.addresses = new Map(); // host -> { ip, expires }
         this.hosts = new Map(); // ip -> host, so connect(ip) knows the name.
         this.home = ''; // CIRCUITPY_WIFI_SSID from settings.toml.
@@ -105,8 +115,10 @@ export class Network {
         return 0;
     }
 
-    realTiming() {
-        return this.mode(WIFI_MODE.REAL_TIMING);
+    delay(kind) {
+        if (!this.mode(WIFI_MODE.REAL_TIMING)) return 0;
+        const [low, high] = TIMING[typeof kind === 'number' ? DELAY_KINDS[kind] : kind] ?? [0, 0];
+        return Math.round(low + Math.random() * (high - low));
     }
 
     leave() {
@@ -130,7 +142,15 @@ export class Network {
         if (!this.connected || this.mode(WIFI_MODE.NO_INTERNET)) return { result: DNS_NOT_FOUND };
         const name = host.toLowerCase();
         const cached = this.addresses.get(name);
-        if (cached && cached.expires > Date.now()) return { result: 0, ip: cached.ip };
+        if (cached && cached.expires > Date.now()) {
+            const waiting = this.cacheWaits.get(name) ?? Date.now() + this.delay('lookup');
+            if (Date.now() < waiting) {
+                this.cacheWaits.set(name, waiting);
+                return { result: -ERRNO.EINPROGRESS };
+            }
+            this.cacheWaits.delete(name);
+            return { result: 0, ip: cached.ip };
+        }
 
         let pending = this.lookups.get(name);
         if (!pending) {
@@ -289,7 +309,7 @@ export class Network {
         if (!this.connected) return -ERRNO.EHOSTUNREACH;
         if (!this.mode(WIFI_MODE.NO_INTERNET)) {
             if (port === NTP_PORT && bytes.length >= 48) {
-                socket.inbox.push({ from: ip, port, data: ntpReply(bytes) });
+                socket.inbox.push({ from: ip, port, data: ntpReply(bytes), readyAt: Date.now() + this.delay('ntp') });
             } else if (port === DNS_PORT && bytes.length >= 12) {
                 socket.requests.push({ answer: this.ask({ op: 'dns-query', query: bytes }), from: ip, port });
             }
@@ -309,8 +329,9 @@ export class Network {
                 if (state === 2) socket.inbox.push({ from: request.from, port: request.port, data: new Uint8Array(request.body).slice() });
             }
         }
-        const datagram = socket.inbox.shift();
-        if (!datagram) return { result: -ERRNO.EAGAIN };
+        const datagram = socket.inbox[0];
+        if (!datagram || (datagram.readyAt && Date.now() < datagram.readyAt)) return { result: -ERRNO.EAGAIN };
+        socket.inbox.shift();
         const bytes = datagram.data.subarray(0, length);
         return { result: bytes.length, bytes, from: datagram.from, port: datagram.port };
     }
