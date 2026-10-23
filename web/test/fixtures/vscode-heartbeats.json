@@ -1,0 +1,77 @@
+{
+  "save": {
+    "method": "POST",
+    "path": "/api/v1/users/current/heartbeats.bulk",
+    "headers": {
+      "user-agent": "wakatime/v2.27.5 (darwin-27.0.0-arm64) go1.27.2 vscode/1.106.0 vscode-wakatime/30.2.1",
+      "accept": "application/json",
+      "content-type": "application/json",
+      "timezone": "<IANA time zone>",
+      "x-machine-name": "<host name>",
+      "authorization": "Basic <base64 of the API key>"
+    },
+    "heartbeat": {
+      "branch": "",
+      "cursorpos": 13,
+      "dependencies": [
+        "time",
+        "adafruit_requests",
+        "board",
+        "displayio",
+        "socketpool",
+        "ssl",
+        "terminalio",
+        "wifi",
+        "adafruit_display_text"
+      ],
+      "entity": "<project folder>/code.py",
+      "type": "file",
+      "human_line_changes": 3,
+      "is_write": true,
+      "language": "Python",
+      "lineno": 7,
+      "lines": 40,
+      "project": "Weather",
+      "project_root_count": 10,
+      "time": 1792787400.5,
+      "user_agent": "wakatime/v2.27.5 (darwin-27.0.0-arm64) go1.27.2 vscode/1.106.0 vscode-wakatime/30.2.1"
+    }
+  },
+  "edit": {
+    "method": "POST",
+    "path": "/api/v1/users/current/heartbeats.bulk",
+    "headers": {
+      "user-agent": "wakatime/v2.27.5 (darwin-27.0.0-arm64) go1.27.2 vscode/1.106.0 vscode-wakatime/30.2.1",
+      "accept": "application/json",
+      "content-type": "application/json",
+      "timezone": "<IANA time zone>",
+      "x-machine-name": "<host name>",
+      "authorization": "Basic <base64 of the API key>"
+    },
+    "heartbeat": {
+      "branch": "",
+      "cursorpos": 13,
+      "dependencies": [
+        "time",
+        "adafruit_requests",
+        "board",
+        "displayio",
+        "socketpool",
+        "ssl",
+        "terminalio",
+        "wifi",
+        "adafruit_display_text"
+      ],
+      "entity": "<project folder>/code.py",
+      "type": "file",
+      "language": "Python",
+      "lineno": 7,
+      "lines": 40,
+      "project": "Weather",
+      "project_root_count": 10,
+      "time": 1792787400.5,
+      "user_agent": "wakatime/v2.27.5 (darwin-27.0.0-arm64) go1.27.2 vscode/1.106.0 vscode-wakatime/30.2.1"
+    }
+  },
+  "_about": "Captured from wakatime-cli v2.27.5 (as installed by vscode-wakatime 30.2.1) sending to a local mock server: src/examples/weather/code.py in a folder named Weather (10 slashes deep), --plugin 'vscode/1.106.0 vscode-wakatime/30.2.1' --lineno 7 --cursorpos 13 --lines-in-file 40 --alternate-project Weather; 'save' adds --write --human-line-changes 3. The folder path, time zone, host name and key are replaced with placeholders."
+}

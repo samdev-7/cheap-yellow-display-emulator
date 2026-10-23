@@ -22,7 +22,7 @@ import { BoardView } from './ui/boardView.js';
 import { FileTree } from './ui/fileTree.js';
 import { Menu } from './ui/menu.js';
 import { initSplitters } from './ui/splitters.js';
-import { SERVERS, WakaTime, languageOf, normaliseApiUrl } from './wakatime.js';
+import { SERVERS, WakaTime, normaliseApiUrl, validApiKey } from './wakatime.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -163,6 +163,9 @@ function editorState(path, text) {
                     tree.render();
                 }
                 scheduleSave();
+            }
+            if (update.docChanged) {
+                wakatime.edited(openPath, update.state.doc.lines);
             }
             if (update.docChanged || update.selectionSet) {
                 showCursor();
@@ -433,28 +436,28 @@ function cardItems() {
 }
 
 function showCursor() {
-    $('editor-status').hidden = !view;
+    $('cursor-position').hidden = !view;
     if (!view) return;
     const { state } = view;
     const { main } = state.selection;
     const line = state.doc.lineAt(main.head);
     const selected = main.to - main.from;
     $('cursor-position').textContent = `Ln ${line.number}, Col ${main.head - line.from + 1}${selected ? ` (${selected} selected)` : ''}`;
-    $('file-language').textContent = languageOf(openPath) ?? 'Plain Text';
 }
 
 const wakatime = new WakaTime();
 
 function trackActivity(isWrite = false) {
-    if (!view || !wakatime.active) return;
+    if (!view) return;
     const { state } = view;
-    const head = state.selection.main.head;
-    const line = state.doc.lineAt(head);
+    const from = state.selection.main.from;
+    const line = state.doc.lineAt(from);
     wakatime.activity({
-        entity: openPath.slice(1),
+        path: openPath,
         project: project.name,
+        text: state.doc.toString(),
         lineno: line.number,
-        cursorpos: head - line.from + 1,
+        cursorpos: from - line.from + 1,
         lines: state.doc.lines,
         isWrite,
     });
@@ -557,6 +560,10 @@ $('wakatime-form').addEventListener('submit', async (event) => {
     }
     const apiKey = $('wakatime-key').value.trim();
     const enabled = $('wakatime-enabled').checked;
+    if (apiKey && !validApiKey(apiKey)) {
+        fail("That isn't an API key. It looks like waka_ followed by letters and numbers in groups, like waka_1a2b3c4d-....");
+        return;
+    }
     if (apiKey && enabled) {
         $('wakatime-save').disabled = true;
         $('wakatime-save').textContent = 'Checking…';

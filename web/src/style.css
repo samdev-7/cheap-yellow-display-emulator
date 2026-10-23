@@ -1126,7 +1126,7 @@ select {
     justify-content: space-between;
     gap: 8px;
     height: 24px;
-    padding: 0 6px;
+    padding: 0;
     border-top: 1px solid var(--border);
     background: var(--panel);
     color: var(--muted);
@@ -1134,13 +1134,7 @@ select {
     line-height: 1;
 }
 
-.statusbar-side {
-    display: flex;
-    align-items: stretch;
-    min-width: 0;
-}
-
-.statusbar-side[hidden] {
+.statusbar-item[hidden] {
     display: none;
 }
 
@@ -1148,7 +1142,7 @@ select {
     display: inline-flex;
     align-items: center;
     gap: 5px;
-    padding: 0 8px;
+    padding: 0 10px;
     white-space: nowrap;
 }
 

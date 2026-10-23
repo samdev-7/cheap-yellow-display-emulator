@@ -64,6 +64,14 @@
           <span id="editor-title">code.py</span>
         </div>
         <div id="editor" class="editor"></div>
+        <footer class="statusbar" aria-label="Editor status">
+          <button id="wakatime" class="statusbar-item" aria-haspopup="menu" title="WakaTime: track your coding time">
+            <!-- "clock" from Lucide (lucide-static 1.61.0), ISC License, Copyright (c) 2026 Lucide Icons and Contributors -->
+            <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" /></svg>
+            <span id="wakatime-text">WakaTime</span>
+          </button>
+          <span class="statusbar-item" id="cursor-position"></span>
+        </footer>
       </section>
 
       <div class="splitter splitter-device" data-var="--device-w" data-axis="x" data-invert="true" data-min="300" data-max="1100" data-max-share="0.55" data-default="560" aria-label="Resize the board view"></div>
@@ -109,22 +117,6 @@
         </section>
       </div>
     </main>
-
-    <footer class="statusbar" aria-label="Status bar">
-      <div class="statusbar-side">
-        <button id="wakatime" class="statusbar-item" aria-haspopup="menu" title="WakaTime: track your coding time">
-          <!-- "clock" from Lucide (lucide-static 1.61.0), ISC License, Copyright (c) 2026 Lucide Icons and Contributors -->
-          <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" /></svg>
-          <span id="wakatime-text">WakaTime</span>
-        </button>
-      </div>
-      <div class="statusbar-side" id="editor-status">
-        <span class="statusbar-item" id="cursor-position"></span>
-        <span class="statusbar-item">Spaces: 4</span>
-        <span class="statusbar-item">UTF-8</span>
-        <span class="statusbar-item" id="file-language"></span>
-      </div>
-    </footer>
 
     <dialog id="wakatime-dialog" class="dialog" aria-labelledby="wakatime-dialog-title">
       <form method="dialog" id="wakatime-form">
