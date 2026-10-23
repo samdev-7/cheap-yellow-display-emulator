@@ -1,0 +1,23 @@
+name: cyd-accounts-dev
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: cyd-accounts-dev-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: cyd_accounts_dev
+      POSTGRES_USER: cyd_dev
+      POSTGRES_PASSWORD: ${CYD_DEV_DB_PASSWORD:?run npm run db, which sets the password}
+    ports:
+      - '127.0.0.1:55432:5432'
+    volumes:
+      - data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U cyd_dev -d cyd_accounts_dev']
+      interval: 2s
+      retries: 30
+
+volumes:
+  data:
+    name: cyd-accounts-dev-data
