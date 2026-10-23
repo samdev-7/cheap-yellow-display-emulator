@@ -110,6 +110,56 @@
       </div>
     </main>
 
+    <footer class="statusbar" aria-label="Status bar">
+      <div class="statusbar-side">
+        <button id="wakatime" class="statusbar-item" aria-haspopup="menu" title="WakaTime: track your coding time">
+          <!-- "clock" from Lucide (lucide-static 1.61.0), ISC License, Copyright (c) 2026 Lucide Icons and Contributors -->
+          <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" /></svg>
+          <span id="wakatime-text">WakaTime</span>
+        </button>
+      </div>
+      <div class="statusbar-side" id="editor-status">
+        <span class="statusbar-item" id="cursor-position"></span>
+        <span class="statusbar-item">Spaces: 4</span>
+        <span class="statusbar-item">UTF-8</span>
+        <span class="statusbar-item" id="file-language"></span>
+      </div>
+    </footer>
+
+    <dialog id="wakatime-dialog" class="dialog" aria-labelledby="wakatime-dialog-title">
+      <form method="dialog" id="wakatime-form">
+        <h2 id="wakatime-dialog-title">WakaTime</h2>
+        <p class="dialog-note">Tracks how long you spend coding here, per project, file and language, the way the WakaTime editor plugins do. Your API key is kept in this browser and only sent to the server you choose.</p>
+        <label class="field">
+          <span>Server</span>
+          <select id="wakatime-server">
+            <option value="wakatime">WakaTime (wakatime.com)</option>
+            <option value="hackatime">Hackatime (Hack Club)</option>
+            <option value="custom">Other WakaTime-compatible server…</option>
+          </select>
+        </label>
+        <label class="field" id="wakatime-url-field">
+          <span>API URL</span>
+          <input id="wakatime-url" type="url" placeholder="https://wakapi.example.com/api" spellcheck="false" autocomplete="off" />
+          <small>The <code>api_url</code> from your <code>.wakatime.cfg</code>. It must use https.</small>
+        </label>
+        <label class="field">
+          <span>API key</span>
+          <input id="wakatime-key" type="password" spellcheck="false" autocomplete="off" />
+          <small id="wakatime-key-help"></small>
+        </label>
+        <label class="check">
+          <input id="wakatime-enabled" type="checkbox" />
+          <span>Track my coding time</span>
+        </label>
+        <p class="dialog-error" id="wakatime-error" role="alert" hidden></p>
+        <div class="dialog-actions">
+          <button type="button" id="wakatime-cancel">Cancel</button>
+          <button type="submit" id="wakatime-save" class="primary">Save</button>
+        </div>
+      </form>
+    </dialog>
+
     <script type="module" src="/src/main.js"></script>
   </body>
 </html>

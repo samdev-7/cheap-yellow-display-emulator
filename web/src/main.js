@@ -22,6 +22,7 @@ import { BoardView } from './ui/boardView.js';
 import { FileTree } from './ui/fileTree.js';
 import { Menu } from './ui/menu.js';
 import { initSplitters } from './ui/splitters.js';
+import { SERVERS, WakaTime, languageOf, normaliseApiUrl } from './wakatime.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -163,6 +164,10 @@ function editorState(path, text) {
                 }
                 scheduleSave();
             }
+            if (update.docChanged || update.selectionSet) {
+                showCursor();
+                trackActivity();
+            }
         }),
     ];
     if (path.endsWith('.py')) {
@@ -204,6 +209,8 @@ function reopen() {
     }
     tree.reveal(openPath);
     tree.render();
+    showCursor();
+    trackActivity();
 }
 
 function boot(options = {}) {
@@ -216,6 +223,7 @@ function boot(options = {}) {
 }
 
 function flash() {
+    trackActivity(true);
     saveNow();
     boardFiles = project.list();
     unsaved.clear();
@@ -424,6 +432,147 @@ function cardItems() {
     ];
 }
 
+function showCursor() {
+    $('editor-status').hidden = !view;
+    if (!view) return;
+    const { state } = view;
+    const { main } = state.selection;
+    const line = state.doc.lineAt(main.head);
+    const selected = main.to - main.from;
+    $('cursor-position').textContent = `Ln ${line.number}, Col ${main.head - line.from + 1}${selected ? ` (${selected} selected)` : ''}`;
+    $('file-language').textContent = languageOf(openPath) ?? 'Plain Text';
+}
+
+const wakatime = new WakaTime();
+
+function trackActivity(isWrite = false) {
+    if (!view || !wakatime.active) return;
+    const { state } = view;
+    const head = state.selection.main.head;
+    const line = state.doc.lineAt(head);
+    wakatime.activity({
+        entity: openPath.slice(1),
+        project: project.name,
+        lineno: line.number,
+        cursorpos: head - line.from + 1,
+        lines: state.doc.lines,
+        isWrite,
+    });
+}
+
+function showWakatime() {
+    const button = $('wakatime');
+    const name = wakatime.server?.name ?? 'WakaTime';
+    let text;
+    let title;
+    if (!wakatime.settings.apiKey) {
+        text = 'WakaTime';
+        title = 'Track your coding time with WakaTime or Hackatime';
+    } else if (!wakatime.settings.enabled) {
+        text = 'Not tracking';
+        title = `${name}: tracking is off`;
+    } else if (wakatime.error) {
+        text = wakatime.today ?? name;
+        title = `${name}: ${wakatime.error}`;
+    } else {
+        text = wakatime.today ?? name;
+        title = `${name}: your coding time today`;
+    }
+    $('wakatime-text').textContent = text;
+    button.title = title;
+    button.setAttribute('aria-label', title);
+    button.classList.toggle('problem', wakatime.active && Boolean(wakatime.error));
+}
+wakatime.addEventListener('change', showWakatime);
+showWakatime();
+
+const wakatimeMenu = new Menu();
+$('wakatime').onclick = () => {
+    if (!wakatime.settings.apiKey) {
+        openWakatimeSettings();
+        return;
+    }
+    wakatimeMenu.open($('wakatime'), [
+        ...(wakatime.error ? [{ heading: wakatime.error }] : []),
+        { label: 'Open dashboard', run: () => window.open(wakatime.dashboard, '_blank', 'noopener') },
+        {
+            label: 'Track my coding time',
+            checked: wakatime.settings.enabled,
+            run: () => wakatime.configure({ enabled: !wakatime.settings.enabled }),
+        },
+        null,
+        { label: 'WakaTime settings…', run: () => openWakatimeSettings() },
+    ]);
+};
+
+const wakatimeDialog = $('wakatime-dialog');
+
+function chosenServer() {
+    return SERVERS.find((server) => server.id === $('wakatime-server').value) ?? null;
+}
+
+function showServerChoice() {
+    const server = chosenServer();
+    $('wakatime-url-field').hidden = Boolean(server);
+    const help = $('wakatime-key-help');
+    help.textContent = '';
+    if (server) {
+        const link = document.createElement('a');
+        link.href = server.keyPage;
+        link.target = '_blank';
+        link.rel = 'noopener';
+        link.textContent = `Get your ${server.name} API key`;
+        help.append(link);
+    } else {
+        help.textContent = 'The api_key from your .wakatime.cfg.';
+    }
+}
+
+function openWakatimeSettings() {
+    const { apiUrl, apiKey, enabled } = wakatime.settings;
+    const server = SERVERS.find((known) => known.apiUrl === apiUrl);
+    $('wakatime-server').value = server?.id ?? 'custom';
+    $('wakatime-url').value = server ? '' : apiUrl;
+    $('wakatime-key').value = apiKey;
+    $('wakatime-enabled').checked = enabled;
+    $('wakatime-error').hidden = true;
+    showServerChoice();
+    wakatimeDialog.showModal();
+}
+
+$('wakatime-server').onchange = () => showServerChoice();
+$('wakatime-cancel').onclick = () => wakatimeDialog.close();
+
+$('wakatime-form').addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const fail = (message) => {
+        $('wakatime-error').textContent = message;
+        $('wakatime-error').hidden = false;
+    };
+    const server = chosenServer();
+    const apiUrl = server ? server.apiUrl : normaliseApiUrl($('wakatime-url').value);
+    if (!apiUrl) {
+        fail('Enter the server\'s API URL, starting with https://');
+        return;
+    }
+    const apiKey = $('wakatime-key').value.trim();
+    const enabled = $('wakatime-enabled').checked;
+    if (apiKey && enabled) {
+        $('wakatime-save').disabled = true;
+        $('wakatime-save').textContent = 'Checking…';
+        const problem = await WakaTime.check(apiUrl, apiKey);
+        $('wakatime-save').disabled = false;
+        $('wakatime-save').textContent = 'Save';
+        if (problem) {
+            fail(problem);
+            return;
+        }
+    }
+    wakatime.configure({ apiUrl, apiKey, enabled });
+    wakatimeDialog.close();
+    trackActivity();
+});
+
 const terminal = new Terminal({
     convertEol: false,
     fontFamily: "ui-monospace, 'SF Mono', Menlo, monospace",
@@ -575,7 +724,10 @@ $('project-menu').onclick = () => {
 
 const settingsMenu = new Menu();
 $('settings').onclick = () => {
-    settingsMenu.open($('settings'), [{ label: 'Reset panel sizes', run: () => panes.reset() }]);
+    settingsMenu.open($('settings'), [
+        { label: 'WakaTime…', run: () => openWakatimeSettings() },
+        { label: 'Reset panel sizes', run: () => panes.reset() },
+    ]);
 };
 
 $('download').onclick = async () => {
@@ -597,5 +749,5 @@ $('download').onclick = async () => {
 showProject();
 
 if (import.meta.env.DEV) {
-    window.cyd = { emulator, terminal, store, tree, board, proxy, get project() { return project; } };
+    window.cyd = { emulator, terminal, store, tree, board, proxy, wakatime, get project() { return project; } };
 }
