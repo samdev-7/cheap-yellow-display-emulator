@@ -288,6 +288,46 @@ select {
     white-space: nowrap;
 }
 
+.account {
+    height: 32px;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 12px 0 6px;
+    max-width: 220px;
+}
+
+.account[hidden] {
+    display: none;
+}
+
+.account.signed-out {
+    padding: 0 12px;
+}
+
+.account-initial {
+    flex: none;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    display: inline-grid;
+    place-items: center;
+    background: var(--accent);
+    color: var(--accent-ink);
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.account.signed-out .account-initial {
+    display: none;
+}
+
+#account-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
 .settings {
     width: 32px;
     height: 32px;

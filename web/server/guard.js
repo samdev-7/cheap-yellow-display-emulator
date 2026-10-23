@@ -45,7 +45,7 @@ export function refuse(request, settings) {
     return null;
 }
 
-function sameOrigin(request) {
+export function sameOrigin(request) {
     const site = request.headers.get('sec-fetch-site');
     if (site) return site === 'same-origin';
     const origin = request.headers.get('origin');

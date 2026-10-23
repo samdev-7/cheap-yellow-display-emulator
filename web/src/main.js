@@ -254,9 +254,22 @@ emulator.addEventListener('speed', (event) => {
 });
 emulator.addEventListener('state', (event) => setStatus(event.detail.message));
 
-function setStatus(text) {
+let statusHeld = 0;
+let statusWaiting = null;
+function setStatus(text, { hold = 0 } = {}) {
+    if (!hold && Date.now() < statusHeld) {
+        statusWaiting = text;
+        return;
+    }
     $('status').textContent = text;
     $('status').title = text;
+    if (hold) {
+        statusHeld = Date.now() + hold;
+        statusWaiting = null;
+        setTimeout(() => {
+            if (statusWaiting !== null && Date.now() >= statusHeld) setStatus(statusWaiting);
+        }, hold);
+    }
 }
 
 $('run').onclick = () => flash();
@@ -728,6 +741,96 @@ $('project-menu').onclick = () => {
         project.draft ? closeItem() : deleteItem(),
     ]);
 };
+
+let account = null; // { name, local } when signed in
+
+function showAccount() {
+    const button = $('account');
+    button.hidden = false;
+    button.classList.toggle('signed-out', !account);
+    $('account-name').textContent = account ? account.name : 'Sign in';
+    $('account-initial').textContent = account ? account.name.slice(0, 1).toUpperCase() : '';
+    button.title = account ? `Signed in as ${account.name}${account.local ? ' (local account)' : ''}` : 'Sign in with Hack Club to keep your projects in the cloud';
+}
+
+async function loadAccount() {
+    try {
+        const response = await fetch('/api/account', { cache: 'no-store' });
+        const body = await response.json();
+        if (!body.available) return;
+        account = body.user;
+        showAccount();
+    } catch {
+    }
+}
+
+const SIGN_IN_OUTCOMES = {
+    ok: null,
+    cancelled: 'Sign-in cancelled.',
+    failed: "Couldn't sign in with Hack Club. Try again.",
+    unavailable: "Signing in isn't available right now.",
+};
+{
+    const params = new URLSearchParams(location.search);
+    const outcome = params.get('signin');
+    if (outcome !== null) {
+        if (SIGN_IN_OUTCOMES[outcome]) setStatus(SIGN_IN_OUTCOMES[outcome], { hold: 5000 });
+        params.delete('signin');
+        history.replaceState(null, '', `${location.pathname}${params.size ? `?${params}` : ''}${location.hash}`);
+    }
+}
+
+function signIn() {
+    location.href = '/api/auth/login';
+}
+
+async function signInLocally() {
+    const email = prompt('Sign in as (any name ending in @local):', 'dev@local');
+    if (!email) return;
+    const response = await fetch('/api/auth/dev', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+    });
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) {
+        setStatus(body.message ?? "Couldn't sign in.", { hold: 5000 });
+        return;
+    }
+    account = body.user;
+    showAccount();
+}
+
+async function signOut(everywhere) {
+    await fetch('/api/auth/logout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ everywhere }),
+    }).catch(() => {});
+    account = null;
+    showAccount();
+    setStatus(everywhere ? 'Signed out on every device.' : 'Signed out.', { hold: 5000 });
+}
+
+const accountMenu = new Menu();
+$('account').onclick = () => {
+    if (account) {
+        accountMenu.open($('account'), [
+            { heading: account.local ? `${account.name} (local account)` : account.name },
+            { label: 'Sign out', run: () => signOut(false) },
+            { label: 'Sign out everywhere', run: () => signOut(true) },
+        ]);
+    } else if (import.meta.env.DEV) {
+        accountMenu.open($('account'), [
+            { label: 'Sign in with Hack Club', run: () => signIn() },
+            { label: 'Sign in as …@local', run: () => signInLocally() },
+        ]);
+    } else {
+        signIn();
+    }
+};
+
+loadAccount();
 
 const settingsMenu = new Menu();
 $('settings').onclick = () => {
