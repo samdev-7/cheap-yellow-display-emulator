@@ -58,18 +58,18 @@ static FRESULT _write_file(FATFS *fatfs, char *path, uint32_t len) {
 }
 
 void wasm_fs_apply_pending(void) {
-    if (!filesystem_present()) {
+    char path[PATH_MAX_LEN];
+    uint32_t len;
+    if (!filesystem_present() || !wasm_fs_next_op(path, sizeof(path), &len)) {
         return;
     }
     FATFS *fatfs = &filesystem_circuitpy()->fatfs;
-    char path[PATH_MAX_LEN];
-    uint32_t len;
     int errors = 0;
-    while (wasm_fs_next_op(path, sizeof(path), &len)) {
+    do {
         if (_write_file(fatfs, path, len) != FR_OK) {
             errors++;
         }
-    }
+    } while (wasm_fs_next_op(path, sizeof(path), &len));
     filesystem_flush();
     wasm_fs_ops_done(errors);
 }
