@@ -1,4 +1,4 @@
-# Cheap Yellow Display
+# Cheap Yellow Display Emulator
 
 Emulate and write firmware (CircuitPython) for the Cheap Yellow Display (ESP32-2432S028R) in the browser.
 
