@@ -49,6 +49,10 @@
     box-sizing: border-box;
 }
 
+[hidden] {
+    display: none !important;
+}
+
 html,
 body {
     margin: 0;
@@ -133,12 +137,15 @@ button.icon {
     color: var(--muted);
 }
 
-button.icon:hover {
+button.icon:hover,
+button.statusbar-item:hover,
+button.statusbar-item.open {
     background: var(--hover);
     color: var(--text);
 }
 
-button.icon svg {
+button.icon svg,
+.settings svg {
     width: 16px;
     height: 16px;
 }
@@ -161,20 +168,6 @@ select {
     background: var(--panel);
     border-radius: 6px;
     padding: 6px 8px;
-}
-
-.visually-hidden {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip: rect(0 0 0 0);
-}
-
-.hint {
-    font-size: 12px;
-    color: var(--muted);
-    font-weight: 400;
 }
 
 .toolbar {
@@ -236,17 +229,20 @@ select {
     border: none;
     background: none;
     padding: 0 10px;
-    font: inherit;
     font-weight: 600;
     border-radius: 6px 0 0 6px;
     text-overflow: ellipsis;
 }
 
-.project-name:hover {
+.project-name:hover,
+.tree-row:hover,
+.tree-row.selected {
     background: var(--hover);
 }
 
-.project-name:focus-visible {
+.project-name:focus-visible,
+.tree-row:focus-visible,
+button.statusbar-item:focus-visible {
     outline-offset: -2px;
 }
 
@@ -261,7 +257,8 @@ select {
     color: var(--muted);
 }
 
-.actions button {
+.actions button,
+.device-controls button {
     display: inline-flex;
     align-items: center;
     gap: 6px;
@@ -269,7 +266,8 @@ select {
     line-height: 1;
 }
 
-.actions svg {
+.actions svg,
+.device-controls svg {
     display: block;
     width: 14px;
     height: 14px;
@@ -295,10 +293,6 @@ select {
     gap: 8px;
     padding: 0 12px 0 6px;
     max-width: 220px;
-}
-
-.account[hidden] {
-    display: none;
 }
 
 .account.signed-out {
@@ -334,11 +328,6 @@ select {
     padding: 0;
     display: inline-grid;
     place-items: center;
-}
-
-.settings svg {
-    width: 16px;
-    height: 16px;
 }
 
 .workspace {
@@ -417,9 +406,6 @@ select {
     gap: 12px;
     overflow: clip;
     min-width: 0;
-}
-
-.device-pane {
     position: relative;
 }
 
@@ -439,10 +425,6 @@ select {
     font-size: 11px;
     line-height: 14px;
     white-space: nowrap;
-}
-
-.speed-warning[hidden] {
-    display: none;
 }
 
 .speed-warning svg {
@@ -552,14 +534,6 @@ select {
     white-space: nowrap;
 }
 
-.tree-row:hover {
-    background: var(--hover);
-}
-
-.tree-row.selected {
-    background: var(--hover);
-}
-
 .tree-row.dragging {
     opacity: 0.45;
 }
@@ -577,10 +551,6 @@ select {
 .tree-row.current {
     background: var(--panel-2);
     box-shadow: inset 2px 0 0 var(--accent);
-}
-
-.tree-row:focus-visible {
-    outline-offset: -2px;
 }
 
 .tree-chevron {
@@ -730,7 +700,8 @@ select {
     flex: 1;
 }
 
-.menu-detail {
+.menu-detail,
+.dialog small {
     color: var(--muted);
     font-size: 12px;
 }
@@ -813,7 +784,6 @@ select {
 .board-screen-dim {
     background: #000;
     pointer-events: none;
-    opacity: 1;
     transition: opacity 0.15s;
 }
 
@@ -855,7 +825,6 @@ select {
     left: 50%;
     transform: translateX(-50%);
     margin-top: 0.4cqw;
-    line-height: 1;
     font: 700 1.5cqw/1 system-ui, sans-serif;
     color: #6b5400;
     white-space: nowrap;
@@ -943,18 +912,10 @@ select {
     pointer-events: none;
 }
 
-.board-sdcard[hidden] {
-    display: none;
-}
-
 .board-cable {
     position: absolute;
     inset: 0;
     pointer-events: none;
-}
-
-.board-cable[hidden] {
-    display: none;
 }
 
 .board-cable > * {
@@ -965,11 +926,9 @@ select {
 
 .board-cable-hotspot,
 .board-cable-hotspot:hover {
-    position: absolute;
     padding: 0;
     border: 0;
     background: none;
-    cursor: pointer;
 }
 
 .board-cable-cord {
@@ -1003,10 +962,6 @@ select {
     font: 600 11px/1.3 ui-monospace, 'SF Mono', Menlo, monospace;
     white-space: nowrap;
     pointer-events: none;
-}
-
-.board-tip[hidden] {
-    display: none;
 }
 
 .board-tip.stacked {
@@ -1077,21 +1032,9 @@ select {
 }
 
 .device-controls button {
-    display: inline-flex;
-    align-items: center;
     justify-content: center;
-    gap: 6px;
     height: 32px;
-    padding: 0 12px;
-    line-height: 1;
     white-space: nowrap;
-}
-
-.device-controls svg {
-    display: block;
-    width: 14px;
-    height: 14px;
-    flex: none;
 }
 
 .device-controls span {
@@ -1122,10 +1065,6 @@ select {
 
 .board-face {
     position: relative;
-}
-
-.board-face[hidden] {
-    display: none;
 }
 
 .console {
@@ -1166,16 +1105,11 @@ select {
     justify-content: space-between;
     gap: 8px;
     height: 24px;
-    padding: 0;
     border-top: 1px solid var(--border);
     background: var(--panel);
     color: var(--muted);
     font-size: 12px;
     line-height: 1;
-}
-
-.statusbar-item[hidden] {
-    display: none;
 }
 
 .statusbar-item {
@@ -1190,19 +1124,7 @@ button.statusbar-item {
     border: none;
     border-radius: 0;
     background: none;
-    color: inherit;
-    font-size: inherit;
     min-width: 0;
-}
-
-button.statusbar-item:hover,
-button.statusbar-item.open {
-    background: var(--hover);
-    color: var(--text);
-}
-
-button.statusbar-item:focus-visible {
-    outline-offset: -2px;
 }
 
 .statusbar-item svg {
@@ -1257,10 +1179,6 @@ button.statusbar-item:focus-visible {
     font-size: 13px;
 }
 
-.dialog .field[hidden] {
-    display: none;
-}
-
 .dialog input[type='url'],
 .dialog input[type='password'],
 .dialog select {
@@ -1270,11 +1188,6 @@ button.statusbar-item:focus-visible {
     border: 1px solid var(--border);
     border-radius: 6px;
     background: var(--bg);
-}
-
-.dialog small {
-    color: var(--muted);
-    font-size: 12px;
 }
 
 .dialog small a {
@@ -1297,10 +1210,6 @@ button.statusbar-item:focus-visible {
     background: var(--warning-bg);
     color: var(--warning-text);
     font-size: 13px;
-}
-
-.dialog-error[hidden] {
-    display: none;
 }
 
 .dialog-actions {
