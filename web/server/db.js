@@ -21,7 +21,7 @@ export async function database(env) {
     return entry.pool;
 }
 
-export async function migrate(pool) {
+async function migrate(pool) {
     const client = await pool.connect();
     try {
         await client.query('select pg_advisory_lock($1)', [MIGRATION_LOCK]);
@@ -43,21 +43,6 @@ export async function migrate(pool) {
         }
     } finally {
         await client.query('select pg_advisory_unlock($1)', [MIGRATION_LOCK]).catch(() => {});
-        client.release();
-    }
-}
-
-export async function transaction(pool, fn) {
-    const client = await pool.connect();
-    try {
-        await client.query('begin');
-        const result = await fn(client);
-        await client.query('commit');
-        return result;
-    } catch (error) {
-        await client.query('rollback').catch(() => {});
-        throw error;
-    } finally {
         client.release();
     }
 }

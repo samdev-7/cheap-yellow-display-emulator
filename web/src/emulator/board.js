@@ -27,12 +27,10 @@ const PIN = {
 };
 
 const MODE_DISABLED = 0;
-const MODE_INPUT = 1;
 const MODE_OUTPUT = 2;
 const MODE_OPEN_DRAIN = 3;
 
 const PULL_UP = 1;
-const PULL_DOWN = 2;
 
 export class CYDBoard {
     constructor({ ctrl, framebuffer }, card) {

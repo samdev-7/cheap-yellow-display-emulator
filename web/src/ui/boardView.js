@@ -441,10 +441,6 @@ export class BoardView {
         canvas.addEventListener('pointercancel', release);
     }
 
-    flip() {
-        return this.setSide(!this.showingBack);
-    }
-
     setSide(back) {
         this.showingBack = back;
         this.front.element.hidden = back;

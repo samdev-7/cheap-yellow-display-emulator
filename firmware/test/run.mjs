@@ -98,7 +98,7 @@ const hal = createHal(shared, files, (message) => {
         console.error(`[deep sleep: time ${message.timeMs} ms, pins ${JSON.stringify(message.pins)} values ${JSON.stringify(message.values)}]`);
         finish();
     } else if (message.type === 'nvm') {
-        console.error(`[nvm saved: first bytes ${[...message.bytes.slice(0, 4)].join(',')}]`);
+        console.error(`[nvm saved: first bytes ${[...shared.nvm.slice(0, 4)].join(',')}]`);
     } else if (message.type === 'speed') {
         console.error(`[speed: ${message.ratio === null ? 'keeping up' : `${message.ratio.toFixed(2)}x realtime`}]`);
     } else if (message.type.startsWith('net')) {

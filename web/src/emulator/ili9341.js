@@ -1,3 +1,5 @@
+import { SCREEN_WIDTH } from './shared.js';
+
 const PANEL_COLS = 240; // Native panel width (column addresses, unrotated).
 const PANEL_ROWS = 320; // Native panel height (page addresses, unrotated).
 
@@ -5,9 +7,6 @@ const MY = 0x80;
 const MX = 0x40;
 const MV = 0x20;
 const BGR = 0x08;
-
-export const SCREEN_WIDTH = 320;
-export const SCREEN_HEIGHT = 240;
 
 export class ILI9341 {
     constructor(framebuffer, onChange) {

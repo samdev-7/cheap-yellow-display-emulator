@@ -12,7 +12,6 @@ export const CTRL = {
     BOOT_BUTTON: 7, // 1 while the BOOT button is held down.
     LIGHT_MV: 8, // Voltage on the light sensor pin, in millivolts.
     FRAME: 9, // Bumped by the worker whenever the screen changes.
-    MAILBOX_STATE: 10, // 1 when the mailbox holds file operations to apply.
     DISPLAY_ON: 11, // 1 when the panel is out of sleep and switched on.
     BACKLIGHT: 12, // 0..1000.
     LED_RED: 13, // 0..1000.
@@ -39,13 +38,12 @@ export const RESET_REASON = {
 const CTRL_BYTES = 32 * 4;
 export const SERIAL_SIZE = 16384;
 const FB_BYTES = SCREEN_WIDTH * SCREEN_HEIGHT * 4;
-export const MAILBOX_SIZE = 4 * 1024 * 1024;
 export const SD_AREA_SIZE = 64 * 1024;
 export const NVM_SIZE = 8 * 1024;
 export const SLEEP_MEMORY_SIZE = 3 * 1024;
 
 export function createShared() {
-    return new SharedArrayBuffer(CTRL_BYTES + SERIAL_SIZE + FB_BYTES + MAILBOX_SIZE + SD_AREA_SIZE + NVM_SIZE + SLEEP_MEMORY_SIZE);
+    return new SharedArrayBuffer(CTRL_BYTES + SERIAL_SIZE + FB_BYTES + SD_AREA_SIZE + NVM_SIZE + SLEEP_MEMORY_SIZE);
 }
 
 export function views(sab) {
@@ -56,14 +54,12 @@ export function views(sab) {
     offset += SERIAL_SIZE;
     const framebuffer = new Uint8Array(sab, offset, FB_BYTES);
     offset += FB_BYTES;
-    const mailbox = new Uint8Array(sab, offset, MAILBOX_SIZE);
-    offset += MAILBOX_SIZE;
     const sdArea = new Uint8Array(sab, offset, SD_AREA_SIZE);
     offset += SD_AREA_SIZE;
     const nvm = new Uint8Array(sab, offset, NVM_SIZE);
     offset += NVM_SIZE;
     const sleepMemory = new Uint8Array(sab, offset, SLEEP_MEMORY_SIZE);
-    return { ctrl, serial, framebuffer, mailbox, sdArea, nvm, sleepMemory };
+    return { ctrl, serial, framebuffer, sdArea, nvm, sleepMemory };
 }
 
 export function packCard(card, area) {
@@ -93,37 +89,4 @@ export function unpackCard(area) {
         offset += 516;
     }
     return { sectors, blocks };
-}
-
-export function packOps(ops, mailbox) {
-    const header = new TextEncoder().encode(
-        JSON.stringify(ops.map((op) => ({ kind: op.kind, path: op.path, size: op.data ? op.data.length : 0 }))),
-    );
-    let size = 4 + header.length;
-    for (const op of ops) {
-        size += op.data ? op.data.length : 0;
-    }
-    if (size > mailbox.length) {
-        throw new Error('Files are too large to send to the emulator at once.');
-    }
-    new DataView(mailbox.buffer, mailbox.byteOffset).setUint32(0, header.length, true);
-    mailbox.set(header, 4);
-    let offset = 4 + header.length;
-    for (const op of ops) {
-        if (op.data) {
-            mailbox.set(op.data, offset);
-            offset += op.data.length;
-        }
-    }
-}
-
-export function unpackOps(mailbox) {
-    const headerLength = new DataView(mailbox.buffer, mailbox.byteOffset).getUint32(0, true);
-    const header = JSON.parse(new TextDecoder().decode(mailbox.slice(4, 4 + headerLength)));
-    let offset = 4 + headerLength;
-    return header.map((op) => {
-        const data = op.kind === 1 ? mailbox.slice(offset, offset + op.size) : null;
-        offset += op.size;
-        return { kind: op.kind, path: op.path, data };
-    });
 }

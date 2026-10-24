@@ -54,9 +54,9 @@ addToLibrary({
             return 0;
         }
         stringToUTF8(op.path, pathPtr, pathCap);
-        HEAPU32[lenPtr >> 2] = op.data ? op.data.length : 0;
+        HEAPU32[lenPtr >> 2] = op.data.length;
         Module.hal.fsCurrent = op;
-        return op.kind;
+        return 1;
     },
     wasm_fs_op_data: (dest) => {
         HEAPU8.set(Module.hal.fsCurrent.data, dest);
@@ -139,7 +139,4 @@ addToLibrary({
     },
     wasm_alarm_deep_sleep: (timeMs, pinsPtr, valuesPtr, count) =>
         Module.hal.deepSleep(timeMs, [...HEAPU8.subarray(pinsPtr, pinsPtr + count)], [...HEAPU8.subarray(valuesPtr, valuesPtr + count)]),
-
-    wasm_flash_load: (ptr, len) => Module.hal.flashLoad(HEAPU8.subarray(ptr, ptr + len)),
-    wasm_flash_dirty: (offset, len) => Module.hal.flashDirty(offset, len),
 });

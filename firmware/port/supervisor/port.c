@@ -44,7 +44,7 @@ safe_mode_t port_init(void) {
 }
 
 void reset_port(void) {
-    wasm_fs_apply_pending(false);
+    wasm_fs_apply_pending();
 
     #if CIRCUITPY_RTC
     rtc_reset();
@@ -164,7 +164,6 @@ void port_background_task(void) {
     opcodes_at_poll = wasm_vm_opcodes;
     skipped = 0;
     _poll_interrupts();
-    wasm_fs_apply_pending(false);
 }
 
 void port_background_tick(void) {

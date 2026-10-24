@@ -39,9 +39,6 @@ int wasm_fs_next_op(char *path_buf, uint32_t path_cap, uint32_t *data_len);
 void wasm_fs_op_data(uint8_t *dest);
 void wasm_fs_ops_done(int errors);
 
-void wasm_flash_load(uint8_t *flash, uint32_t len);
-void wasm_flash_dirty(uint32_t offset, uint32_t len);
-
 void wasm_wifi_set_home(const char *ssid, uint32_t len);
 int wasm_wifi_connect(const char *ssid, uint32_t len);
 void wasm_wifi_disconnect(void);

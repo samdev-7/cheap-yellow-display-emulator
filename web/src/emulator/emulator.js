@@ -1,4 +1,4 @@
-import { CTRL, RESET_REASON, SERIAL_SIZE, createShared, packCard, packOps, views } from './shared.js';
+import { CTRL, RESET_REASON, SERIAL_SIZE, createShared, packCard, views } from './shared.js';
 import { lightSensorMillivolts } from './analog.js';
 
 const MIN_TOUCH_MS = 150;
@@ -12,8 +12,6 @@ export class Emulator extends EventTarget {
         this.sab = createShared();
         this.shared = views(this.sab);
         this.worker = null;
-        this.queuedOps = [];
-        this.mailboxBusy = false;
         this.sleeping = null; // { pins, values, timer } in deep sleep
         Atomics.store(this.shared.ctrl, CTRL.LIGHT_MV, Math.round(lightSensorMillivolts(70)));
     }
@@ -37,11 +35,9 @@ export class Emulator extends EventTarget {
         if (reason === RESET_REASON.POWER_ON) {
             this.shared.sleepMemory.fill(0);
         }
-        for (const slot of [CTRL.SERIAL_HEAD, CTRL.SERIAL_TAIL, CTRL.CTRL_C, CTRL.MAILBOX_STATE]) {
+        for (const slot of [CTRL.SERIAL_HEAD, CTRL.SERIAL_TAIL, CTRL.CTRL_C]) {
             Atomics.store(ctrl, slot, 0);
         }
-        this.queuedOps = [];
-        this.mailboxBusy = false;
         this.network?.reset();
         this.worker = new Worker(new URL('./worker.js', import.meta.url), { type: 'module' });
         this.worker.onmessage = (event) => this.onWorkerMessage(event.data);
@@ -153,11 +149,7 @@ export class Emulator extends EventTarget {
                 this.emit('state', { running: true, message: 'Running' });
                 break;
             case 'files-applied':
-                if (message.saved) {
-                    this.mailboxBusy = false;
-                }
-                this.emit('files-applied', { errors: message.errors, saved: message.saved });
-                this.flushOps();
+                this.emit('files-applied', { errors: message.errors });
                 break;
             case 'sd-blocks':
                 if (message.generation === Atomics.load(this.ctrl, CTRL.SD_GENERATION)) {
@@ -188,25 +180,6 @@ export class Emulator extends EventTarget {
         }
     }
 
-    applyFiles(ops) {
-        const kinds = { write: 1, mkdir: 2, delete: 3 };
-        for (const op of ops) {
-            this.queuedOps.push({ kind: kinds[op.kind], path: op.path, data: op.data ?? null });
-        }
-        this.flushOps();
-    }
-
-    flushOps() {
-        if (this.mailboxBusy || this.queuedOps.length === 0 || !this.worker) {
-            return;
-        }
-        packOps(this.queuedOps, this.shared.mailbox);
-        this.queuedOps = [];
-        this.mailboxBusy = true;
-        Atomics.store(this.ctrl, CTRL.MAILBOX_STATE, 1);
-        this.wake();
-    }
-
     sendSerial(bytes) {
         const ctrl = this.ctrl;
         let head = Atomics.load(ctrl, CTRL.SERIAL_HEAD);
@@ -223,10 +196,6 @@ export class Emulator extends EventTarget {
         }
         Atomics.store(ctrl, CTRL.SERIAL_HEAD, head);
         this.wake();
-    }
-
-    interrupt() {
-        this.sendSerial(new Uint8Array([0x03]));
     }
 
     setTouch(pressed, x = 0, y = 0) {
