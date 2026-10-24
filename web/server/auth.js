@@ -1,7 +1,7 @@
 import { createHash, randomBytes } from 'node:crypto';
 
 import { database } from './db.js';
-import { error, json, sameOrigin } from './guard.js';
+import { cookie, error, json, readCookie, sameOrigin } from './guard.js';
 import { sign, verify } from './tokens.js';
 
 export const ACCOUNT_COOKIE = 'cyd_account';
@@ -27,18 +27,6 @@ const devSecret = `dev-${randomBytes(16).toString('hex')}`;
 
 function origin(request, settings) {
     return settings.origin || (settings.dev ? new URL(request.url).origin : '');
-}
-
-function cookie(name, value, { path, maxAge, dev }) {
-    return `${name}=${value}; Path=${path}; Max-Age=${maxAge}; HttpOnly; SameSite=Lax${dev ? '' : '; Secure'}`;
-}
-
-function readCookie(request, name) {
-    for (const part of (request.headers.get('cookie') || '').split(';')) {
-        const [key, ...value] = part.trim().split('=');
-        if (key === name) return value.join('=');
-    }
-    return null;
 }
 
 function redirect(location, cookies = []) {

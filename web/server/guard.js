@@ -53,6 +53,18 @@ export function sameOrigin(request) {
     return new URL(origin).host === new URL(request.url).host;
 }
 
+export function readCookie(request, name) {
+    for (const part of (request.headers.get('cookie') || '').split(';')) {
+        const [key, ...value] = part.trim().split('=');
+        if (key === name) return value.join('=');
+    }
+    return null;
+}
+
+export function cookie(name, value, { path, maxAge, dev, sameSite = 'Lax' }) {
+    return `${name}=${value}; Path=${path}; Max-Age=${maxAge}; HttpOnly; SameSite=${sameSite}${dev ? '' : '; Secure'}`;
+}
+
 export function clientAddress(request) {
     const forwarded = request.headers.get('x-forwarded-for');
     return forwarded ? forwarded.split(',')[0].trim() : request.headers.get('x-real-ip') || 'local';

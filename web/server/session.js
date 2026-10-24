@@ -1,4 +1,4 @@
-import { TEST_SECRET_KEY, clientAddress, clientHash, config, error, json, refuse } from './guard.js';
+import { TEST_SECRET_KEY, clientAddress, clientHash, config, cookie, error, json, readCookie, refuse } from './guard.js';
 import { ACCESS_SECONDS, SESSION_SECONDS, newId, sign, verify } from './tokens.js';
 
 export const SESSION_COOKIE = 'cyd_session';
@@ -32,9 +32,8 @@ export async function handleSession(request, env) {
 
     const exp = Math.floor(Date.now() / 1000) + SESSION_SECONDS;
     const session = sign({ kind: 'session', sid: newId(), ip: clientHash(request, settings), exp }, settings.secret);
-    const secure = settings.dev ? '' : '; Secure';
     return json(200, { expiresAt: exp * 1000, expiresIn: SESSION_SECONDS }, {
-        'Set-Cookie': `${SESSION_COOKIE}=${session}; Path=/api; Max-Age=${SESSION_SECONDS}; HttpOnly; SameSite=Strict${secure}`,
+        'Set-Cookie': cookie(SESSION_COOKIE, session, { path: '/api', maxAge: SESSION_SECONDS, dev: settings.dev, sameSite: 'Strict' }),
     });
 }
 
@@ -63,12 +62,4 @@ export async function handleToken(request, env) {
         sessionExpiresAt: session.exp * 1000,
         sessionExpiresIn: Math.max(0, Math.floor(session.exp - now)),
     });
-}
-
-function readCookie(request, name) {
-    for (const part of (request.headers.get('cookie') || '').split(';')) {
-        const [key, ...value] = part.trim().split('=');
-        if (key === name) return value.join('=');
-    }
-    return null;
 }
