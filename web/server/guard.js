@@ -45,6 +45,7 @@ export function refuse(request, settings) {
     return null;
 }
 
+// Browsers set Sec-Fetch-Site and Origin; pages can't change them.
 export function sameOrigin(request) {
     const site = request.headers.get('sec-fetch-site');
     if (site) return site === 'same-origin';

@@ -1,3 +1,5 @@
+// Each HTTP request goes through the proxy exactly once.
+
 import { ANSWER, DNS_NOT_FOUND, ERRNO, concat, parseIPv4 } from '../emulator/network.js';
 
 const DOH = 'https://cloudflare-dns.com/dns-query';
@@ -16,8 +18,8 @@ export class NetworkBridge {
         this.wake = wake;
         this.notice = notice;
         this.fetch = fetchImpl;
-        this.waiting = new Map(); // request id -> { answer, bytes }, until the worker takes the bytes.
-        this.recent = {}; // 'http' | 'dns' -> times of recent requests.
+        this.waiting = new Map();
+        this.recent = {};
     }
 
     handle(message) {
@@ -81,7 +83,7 @@ export class NetworkBridge {
                 signal: AbortSignal.timeout(TIMEOUT_MS),
             });
             const reply = await response.json();
-            if (reply.Status === 3) return null; // NXDOMAIN
+            if (reply.Status === 3) return null;
             const record = (reply.Answer ?? []).find((entry) => entry.type === 1);
             if (record) return parseIPv4(record.data);
             if (reply.Status === 0) return null;
@@ -208,7 +210,7 @@ function questionType(bytes) {
     while (offset < bytes.length) {
         const length = bytes[offset];
         if (length === 0) break;
-        if (length > 63) return null; // No compression pointers in a question.
+        if (length > 63) return null;
         offset += length + 1;
     }
     if (offset + 5 > bytes.length) return null;
@@ -242,7 +244,7 @@ function proxyFailure(error, host) {
 function isPrivateHost(host) {
     if (host === 'localhost' || host.endsWith('.localhost') || host.endsWith('.local') || host.endsWith('.internal')) return true;
     const ip = parseIPv4(host);
-    if (ip === null) return host.includes(':'); // IPv6 literals aren't supported.
+    if (ip === null) return host.includes(':');
     const [a, b] = [ip >>> 24, (ip >>> 16) & 255];
     return a === 0 || a === 10 || a === 127 || (a === 169 && b === 254) || (a === 172 && b >= 16 && b < 32) || (a === 192 && b === 168) || (a === 100 && b >= 64 && b < 128) || a >= 224;
 }

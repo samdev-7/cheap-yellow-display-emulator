@@ -42,6 +42,7 @@ const system = { os: 'unknown', version: 'unknown', arch: 'unknown', osName: 'Un
         .catch(() => {});
 }
 
+// wakatime-cli's user agent without the runtime token, which servers would read as the editor.
 export function userAgent() {
     return `wakatime/v${VERSION} (${system.os}-${system.version}-${system.arch}) ${EDITOR}/${VERSION} ${EDITOR}-wakatime/${VERSION}`;
 }
@@ -143,11 +144,11 @@ export class WakaTime extends EventTarget {
         super();
         this.settings = { enabled: true, apiKey: '', apiUrl: SERVERS[0].apiUrl, ...readJson(SETTINGS_KEY, {}) };
         this.queue = readJson(QUEUE_KEY, []);
-        this.last = null; // { path, time } of the last heartbeat
-        this.lastWrite = new Map(); // path: { time, lineno, cursorpos } of its last save
-        this.lineCounts = new Map(); // path: { lines, at } as last seen
-        this.lineChanges = new Map(); // path: lines typed since the last heartbeat
-        this.today = null; // today's total as text, like "1 hr 5 mins"
+        this.last = null;
+        this.lastWrite = new Map();
+        this.lineCounts = new Map();
+        this.lineChanges = new Map();
+        this.today = null;
         this.todayAt = 0;
         this.error = null;
         this.sending = false;
@@ -217,6 +218,7 @@ export class WakaTime extends EventTarget {
         writeJson(QUEUE_KEY, this.queue);
     }
 
+    // Only WakaTime allows Timezone and X-Machine-Name from web pages.
     request(path, options = {}) {
         const extra = this.server?.id === 'wakatime' ? { Timezone: Intl.DateTimeFormat().resolvedOptions().timeZone, 'X-Machine-Name': machineName() } : {};
         return fetch(`${this.settings.apiUrl}${path}`, {

@@ -3,6 +3,7 @@
 set -euo pipefail
 
 CP_VERSION=10.3.1
+# CircuitPython reports CP_VERSION; git describe would add "-dirty" for the patches.
 export CP_VERSION
 BOARD=sunton_esp32_2432S028
 SUBMODULES=(extmod/ulab lib/mp3 lib/tlsf lib/quirc lib/mbedtls lib/certificates tools/huffman tools/bitmap_font)

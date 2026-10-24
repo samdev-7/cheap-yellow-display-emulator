@@ -18,23 +18,23 @@ export const ERRNO = {
 export const DNS_NOT_FOUND = 1000;
 
 export const ANSWER = {
-    STATE: 0, // 0 waiting, 1 answered (size or error known), 2 body copied.
-    VALUE: 1, // Response size in bytes, or the IPv4 address for a lookup.
-    ERROR: 2, // errno, or DNS_NOT_FOUND, when the request failed.
+    STATE: 0,
+    VALUE: 1,
+    ERROR: 2,
 };
 
 export const WIFI_MODE = {
-    NO_NETWORKS: 1, // No networks in range: scans are empty, connecting fails.
-    WRONG_PASSWORD: 2, // Connecting fails as if the password were wrong.
-    NO_INTERNET: 4, // Connected, but nothing beyond the router answers.
-    REAL_TIMING: 8, // Joining, scanning and local replies take real, varying time.
+    NO_NETWORKS: 1,
+    WRONG_PASSWORD: 2,
+    NO_INTERNET: 4,
+    REAL_TIMING: 8,
 };
 
 const TIMING = {
-    join: [1800, 3500], // Authenticate with the router, then DHCP.
-    scan: [1500, 2800], // Listen on each of the 13 channels.
+    join: [1800, 3500],
+    scan: [1500, 2800],
     ping: [5, 50],
-    lookup: [10, 60], // A name already looked up, answered from the cache.
+    lookup: [10, 60],
     ntp: [20, 80],
 };
 const DELAY_KINDS = ['join', 'scan', 'ping'];
@@ -47,7 +47,7 @@ const NEIGHBOURS = [
 
 const NTP_PORT = 123;
 const DNS_PORT = 53;
-const NTP_EPOCH_OFFSET = 2208988800; // Seconds from 1900 to 1970.
+const NTP_EPOCH_OFFSET = 2208988800;
 
 export class Network {
     constructor(ctrl, post) {
@@ -56,11 +56,11 @@ export class Network {
         this.sockets = new Map();
         this.nextSocket = 1;
         this.nextRequest = 1;
-        this.lookups = new Map(); // host -> { answer } while a lookup is out.
-        this.cacheWaits = new Map(); // host -> when a cached answer is ready.
-        this.addresses = new Map(); // host -> { ip, expires }
-        this.hosts = new Map(); // ip -> host, so connect(ip) knows the name.
-        this.home = ''; // CIRCUITPY_WIFI_SSID from settings.toml.
+        this.lookups = new Map();
+        this.cacheWaits = new Map();
+        this.addresses = new Map();
+        this.hosts = new Map();
+        this.home = '';
         this.connected = false;
         this.ssid = '';
         this.dropGeneration = Atomics.load(ctrl, CTRL.WIFI_DROP);
@@ -179,9 +179,9 @@ export class Network {
             port: 0,
             tls: false,
             sni: '',
-            out: new Uint8Array(0), // Bytes written but not yet a whole request.
-            requests: [], // Requests sent to the page, oldest first.
-            inbox: [], // Response bytes (TCP) or datagrams (UDP) to read.
+            out: new Uint8Array(0),
+            requests: [],
+            inbox: [],
             keepAlive: true,
             error: 0,
         });
@@ -410,11 +410,11 @@ function parseRequest(bytes) {
 function ntpReply(request) {
     const reply = new Uint8Array(48);
     const view = new DataView(reply.buffer);
-    reply[0] = 0x24; // No leap warning, version 4, server.
-    reply[1] = 2; // Stratum 2.
+    reply[0] = 0x24;
+    reply[1] = 2;
     reply[2] = request[2];
-    reply[3] = 0xec; // Precision, about a microsecond.
-    reply.set(request.subarray(40, 48), 24); // Origin: the request's transmit time.
+    reply[3] = 0xec;
+    reply.set(request.subarray(40, 48), 24);
     const now = Date.now();
     const seconds = Math.floor(now / 1000) + NTP_EPOCH_OFFSET;
     const fraction = Math.floor(((now % 1000) / 1000) * 2 ** 32);

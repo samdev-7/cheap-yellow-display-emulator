@@ -152,6 +152,7 @@ void port_idle_until_interrupt(void) {
     _poll_interrupts();
 }
 
+// Each poll crosses into JS; polls happen about every 0.4 ms of ESP32 time.
 #define POLL_EVERY_OPCODES 1000
 #define POLL_EVERY_CALLS 64
 

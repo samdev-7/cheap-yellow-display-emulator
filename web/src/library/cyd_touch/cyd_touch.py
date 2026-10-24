@@ -1,6 +1,7 @@
 # Touchscreen driver for the Cheap Yellow Display's XPT2046 controller.
 #   import cyd_touch
 #   touch = cyd_touch.Touch()
+#   point = touch.read()   # (x, y) in screen pixels, or None
 
 import board
 import busio
@@ -11,8 +12,8 @@ X_MAX = 3700
 Y_MIN = 240
 Y_MAX = 3800
 
-_READ_X = 0x90  # Channel that follows the screen's x axis on the CYD.
-_READ_Y = 0xD0  # Channel that follows the screen's y axis on the CYD.
+_READ_X = 0x90
+_READ_Y = 0xD0
 _READ_Z1 = 0xB0
 _READ_Z2 = 0xC0
 

@@ -15,7 +15,7 @@ typedef struct {
     uint8_t bits;
     uint8_t phase;
     uint8_t polarity;
-    uint32_t baudrate;            // Actual frequency.
+    uint32_t baudrate;
     uint32_t requested_baudrate;
     bool has_lock;
 } busio_spi_obj_t;

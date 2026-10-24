@@ -40,7 +40,7 @@ test('a save matches VS Code', () => {
     assert.deepEqual(comparable(ours), comparable(vscode.save.heartbeat));
     assert.deepEqual(Object.keys(ours).sort(), Object.keys(vscode.save.heartbeat).sort());
     assert.equal(ours.entity, '/Weather/code.py');
-    assert.equal(ours.project_root_count, 2); // slashes in "/Weather/", as wakatime-cli counts
+    assert.equal(ours.project_root_count, 2);
 });
 
 test('an edit matches VS Code', () => {
@@ -58,7 +58,7 @@ test('dependencies follow wakatime-cli', () => {
     assert.deepEqual(pythonDependencies(weather), vscode.save.heartbeat.dependencies);
     assert.deepEqual(
         pythonDependencies('import os, sys\nimport a.b as c, d\nfrom . import e\nfrom .f import g\nfrom __future__ import annotations\n  import h  # i\nimport a\n'),
-        ['a', 'h'], // wakatime-cli v2.27.5's output for this file
+        ['a', 'h'],
     );
     assert.equal(heartbeat({ ...at, path: '/settings.toml', text: 'import x' }).dependencies, undefined);
 });
@@ -72,7 +72,7 @@ test('API keys are checked as wakatime-cli does', () => {
     assert.equal(validApiKey(KEY), true);
     assert.equal(validApiKey('00000000-0000-4000-8000-000000000000'), true);
     assert.equal(validApiKey('waka_test'), false);
-    assert.equal(validApiKey('00000000-0000-1000-8000-000000000000'), false); // not version 4
+    assert.equal(validApiKey('00000000-0000-1000-8000-000000000000'), false);
 });
 
 test('requests to WakaTime carry the same headers as VS Code', async () => {
@@ -84,7 +84,7 @@ test('requests to WakaTime carry the same headers as VS Code', async () => {
     const sent = requests.find((request) => request.url.endsWith('/heartbeats.bulk'));
     assert.equal(sent.method, vscode.save.method);
     assert.equal(new URL(sent.url).pathname, vscode.save.path);
-    const expected = Object.keys(vscode.save.headers).filter((name) => name !== 'user-agent'); // a page can't set it
+    const expected = Object.keys(vscode.save.headers).filter((name) => name !== 'user-agent');
     assert.deepEqual(Object.keys(sent.headers).map((name) => name.toLowerCase()).sort(), expected.sort());
     assert.equal(sent.headers.Authorization, `Basic ${btoa(KEY)}`);
     assert.equal(sent.headers.Timezone, Intl.DateTimeFormat().resolvedOptions().timeZone);
@@ -109,10 +109,10 @@ test('heartbeats follow the plugin timing rules', () => {
     wakatime.configure({ apiKey: KEY, apiUrl: 'https://api.wakatime.com/api/v1', enabled: true });
     wakatime.queue.length = 0;
     wakatime.activity({ ...at, path: '/a.py' });
-    wakatime.activity({ ...at, path: '/a.py', lineno: 8 }); // same file, under 2 minutes: none
-    wakatime.activity({ ...at, path: '/b.py' }); // another file: one
-    wakatime.activity({ ...at, path: '/b.py', isWrite: true }); // a save: one
-    wakatime.activity({ ...at, path: '/b.py', isWrite: true }); // saved again, cursor unmoved: none
+    wakatime.activity({ ...at, path: '/a.py', lineno: 8 });
+    wakatime.activity({ ...at, path: '/b.py' });
+    wakatime.activity({ ...at, path: '/b.py', isWrite: true });
+    wakatime.activity({ ...at, path: '/b.py', isWrite: true });
     assert.deepEqual(wakatime.queue.map((beat) => [beat.entity, beat.is_write ?? false]), [
         ['/Weather/a.py', false],
         ['/Weather/b.py', false],
@@ -128,7 +128,7 @@ test('typed lines are counted, pastes are not', () => {
     wakatime.edited('/c.py', 12);
     wakatime.edited('/c.py', 13);
     wakatime.activity({ ...at, path: '/c.py', lines: 13, isWrite: true });
-    wakatime.edited('/c.py', 100); // 87 lines at once
+    wakatime.edited('/c.py', 100);
     wakatime.activity({ ...at, path: '/c.py', lines: 100, lineno: 90, isWrite: true });
     assert.deepEqual(wakatime.queue.map((beat) => beat.human_line_changes), [undefined, 3, undefined]);
 });

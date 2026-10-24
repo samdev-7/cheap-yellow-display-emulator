@@ -20,10 +20,10 @@
 
 #include "wasm_hal.h"
 
-#define DHCP_ADDRESS 0xc0a8012a // 192.168.1.42
-#define DHCP_GATEWAY 0xc0a80101 // 192.168.1.1
-#define DHCP_SUBNET 0xffffff00 // 255.255.255.0
-#define AP_ADDRESS 0xc0a80401 // 192.168.4.1, the ESP32's soft AP default.
+#define DHCP_ADDRESS 0xc0a8012a
+#define DHCP_GATEWAY 0xc0a80101
+#define DHCP_SUBNET 0xffffff00
+#define AP_ADDRESS 0xc0a80401
 
 static bool ap_active = false;
 

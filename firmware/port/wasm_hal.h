@@ -18,6 +18,7 @@ uint32_t wasm_serial_available(void);
 int wasm_serial_read(void);
 int wasm_serial_check_interrupt(void);
 
+// mode: 0 disabled, 1 input, 2 output, 3 open drain. pull: 0 none, 1 up, 2 down.
 void wasm_gpio_config(uint8_t pin, uint8_t mode, uint8_t pull);
 void wasm_gpio_set(uint8_t pin, bool value);
 bool wasm_gpio_get(uint8_t pin);
@@ -50,6 +51,7 @@ bool wasm_wifi_connected(void);
 int wasm_wifi_scan(uint32_t index, char *ssid, int32_t *info);
 void wasm_wifi_ap_info(char *ssid, int32_t *info);
 
+// Waiting network calls return -EINPROGRESS or -EAGAIN; other negative results are -errno.
 #define WASM_NET_DNS_NOT_FOUND 1000
 int wasm_net_lookup(const char *host, uint32_t len, uint32_t *ip);
 int wasm_net_socket(bool udp);

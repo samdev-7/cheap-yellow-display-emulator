@@ -12,7 +12,7 @@ export class Emulator extends EventTarget {
         this.sab = createShared();
         this.shared = views(this.sab);
         this.worker = null;
-        this.sleeping = null; // { pins, values, timer } in deep sleep
+        this.sleeping = null;
         Atomics.store(this.shared.ctrl, CTRL.LIGHT_MV, Math.round(lightSensorMillivolts(70)));
     }
 
@@ -186,7 +186,7 @@ export class Emulator extends EventTarget {
         for (const b of bytes) {
             const next = (head + 1) % SERIAL_SIZE;
             if (next === Atomics.load(ctrl, CTRL.SERIAL_TAIL)) {
-                break; // Input buffer full; drop the rest, as a UART FIFO would.
+                break;
             }
             this.shared.serial[head] = b;
             head = next;
@@ -198,6 +198,7 @@ export class Emulator extends EventTarget {
         this.wake();
     }
 
+    // A finger stays on a resistive screen for 100 ms or more.
     setTouch(pressed, x = 0, y = 0) {
         const ctrl = this.ctrl;
         Atomics.store(ctrl, CTRL.TOUCH_X, Math.round(x));

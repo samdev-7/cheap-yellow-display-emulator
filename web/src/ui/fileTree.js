@@ -54,7 +54,7 @@ export class FileTree {
         this.project = project;
         this.cb = callbacks;
         this.collapsed = new Set(loadCollapsed());
-        this.editing = null; // { mode: 'rename' | 'file' | 'folder', path }
+        this.editing = null;
         this.selected = '';
         this.dragging = null;
         this.menu = new Menu();
@@ -68,6 +68,7 @@ export class FileTree {
             }
         });
         this.dropZone(host, () => '');
+        // A row rebuilt mid-drag may never get its dragend.
         const endDrag = () => {
             this.dragging = null;
             this.highlight(null);

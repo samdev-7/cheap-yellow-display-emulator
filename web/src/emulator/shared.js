@@ -2,30 +2,30 @@ export const SCREEN_WIDTH = 320;
 export const SCREEN_HEIGHT = 240;
 
 export const CTRL = {
-    WAKE: 0, // Bumped by the page whenever there is new input.
-    SERIAL_HEAD: 1, // Next write position in the serial input ring (page).
-    SERIAL_TAIL: 2, // Next read position in the serial input ring (worker).
-    CTRL_C: 3, // Set when Ctrl-C has been typed and not yet handled.
+    WAKE: 0,
+    SERIAL_HEAD: 1,
+    SERIAL_TAIL: 2,
+    CTRL_C: 3,
     TOUCH_PRESSED: 4,
-    TOUCH_X: 5, // Screen pixels, 0..319.
-    TOUCH_Y: 6, // Screen pixels, 0..239.
-    BOOT_BUTTON: 7, // 1 while the BOOT button is held down.
-    LIGHT_MV: 8, // Voltage on the light sensor pin, in millivolts.
-    FRAME: 9, // Bumped by the worker whenever the screen changes.
-    DISPLAY_ON: 11, // 1 when the panel is out of sleep and switched on.
-    BACKLIGHT: 12, // 0..1000.
-    LED_RED: 13, // 0..1000.
-    LED_GREEN: 14, // 0..1000.
-    LED_BLUE: 15, // 0..1000.
-    OUTPUTS: 16, // Bumped by the worker whenever an LED or the backlight changes.
-    SD_INSERTED: 17, // 1 while a microSD card is in the slot.
-    SD_GENERATION: 18, // Bumped by the page when it puts a new card image in the SD area.
-    WIFI_MODE: 19, // Wi-Fi conditions from the board menu (network.js WIFI_MODE bits).
-    WIFI_DROP: 20, // Bumped by the page to drop the board's Wi-Fi connection.
-    RESET_REASON: 21, // Why the board started (RESET_REASON), set by the page.
-    WAKE_KIND: 22, // What woke it from deep sleep: 0 nothing, 1 a time alarm, 2 a pin.
-    WAKE_PIN: 23, // For a pin: which GPIO,
-    WAKE_VALUE: 24, // and at which level.
+    TOUCH_X: 5,
+    TOUCH_Y: 6,
+    BOOT_BUTTON: 7,
+    LIGHT_MV: 8,
+    FRAME: 9,
+    DISPLAY_ON: 11,
+    BACKLIGHT: 12,
+    LED_RED: 13,
+    LED_GREEN: 14,
+    LED_BLUE: 15,
+    OUTPUTS: 16,
+    SD_INSERTED: 17,
+    SD_GENERATION: 18,
+    WIFI_MODE: 19,
+    WIFI_DROP: 20,
+    RESET_REASON: 21,
+    WAKE_KIND: 22,
+    WAKE_PIN: 23,
+    WAKE_VALUE: 24,
 };
 
 export const RESET_REASON = {

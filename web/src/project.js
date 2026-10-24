@@ -3,7 +3,8 @@ import { del, get, set } from 'idb-keyval';
 import settingsTemplate from './examples/settings.toml?raw';
 import starterCode from './templates/code.py?raw';
 
-//
+// Saved data carries a version, and loading upgrades older versions step by step.
+// A change to the saved shape needs a FORMAT_VERSION bump and an upgrade step.
 export const FORMAT_VERSION = 1;
 const INDEX_KEY = 'cyd-projects-v1';
 const projectKey = (id) => `cyd-project:${id}`;
@@ -79,7 +80,7 @@ export function defaultBoardState() {
         light: 70,
         card: { inserted: false, sizeGB: 8, sectors: 0, blocks: new Map() },
         wifi: { inRange: true, passwordAccepted: true, internet: true, connectInstantly: true },
-        nvm: null, // microcontroller.nvm contents, or null if blank.
+        nvm: null,
     };
 }
 
@@ -87,7 +88,7 @@ export class Project {
     constructor(id, name) {
         this.id = id;
         this.name = name;
-        this.files = new Map(); // path -> Uint8Array
+        this.files = new Map();
         this.emptyFolders = new Set();
         this.board = defaultBoardState();
     }
@@ -238,7 +239,7 @@ export class Project {
 
 export class ProjectStore {
     constructor() {
-        this.projects = []; // [{ id, name }]
+        this.projects = [];
         this.currentId = null;
         this.seeded = false;
     }

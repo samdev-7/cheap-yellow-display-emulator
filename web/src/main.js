@@ -720,7 +720,7 @@ $('project-menu').onclick = () => {
     ]);
 };
 
-let account = null; // { name, local } when signed in
+let account = null;
 
 function showAccount() {
     const button = $('account');

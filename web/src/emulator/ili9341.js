@@ -1,7 +1,7 @@
 import { SCREEN_WIDTH } from './shared.js';
 
-const PANEL_COLS = 240; // Native panel width (column addresses, unrotated).
-const PANEL_ROWS = 320; // Native panel height (page addresses, unrotated).
+const PANEL_COLS = 240;
+const PANEL_ROWS = 320;
 
 const MY = 0x80;
 const MX = 0x40;
@@ -62,35 +62,35 @@ export class ILI9341 {
         this.params = [];
         this.pendingByte = -1;
         switch (cmd) {
-            case 0x01: // Software reset
+            case 0x01:
                 this.reset();
                 this.command = 0x01;
                 break;
-            case 0x10: // Sleep in
+            case 0x10:
                 this.sleeping = true;
                 this.onChange();
                 break;
-            case 0x11: // Sleep out
+            case 0x11:
                 this.sleeping = false;
                 this.onChange();
                 break;
-            case 0x20: // Inversion off
+            case 0x20:
                 this.inverted = false;
                 this.onChange();
                 break;
-            case 0x21: // Inversion on
+            case 0x21:
                 this.inverted = true;
                 this.onChange();
                 break;
-            case 0x28: // Display off
+            case 0x28:
                 this.displayOn = false;
                 this.onChange();
                 break;
-            case 0x29: // Display on
+            case 0x29:
                 this.displayOn = true;
                 this.onChange();
                 break;
-            case 0x2c: // Memory write starts at the window's first pixel.
+            case 0x2c:
                 this.col = this.colStart;
                 this.page = this.pageStart;
                 break;
@@ -102,19 +102,19 @@ export class ILI9341 {
     applyParams() {
         const p = this.params;
         switch (this.command) {
-            case 0x2a: // Column address set
+            case 0x2a:
                 if (p.length === 4) {
                     this.colStart = (p[0] << 8) | p[1];
                     this.colEnd = (p[2] << 8) | p[3];
                 }
                 break;
-            case 0x2b: // Page address set
+            case 0x2b:
                 if (p.length === 4) {
                     this.pageStart = (p[0] << 8) | p[1];
                     this.pageEnd = (p[2] << 8) | p[3];
                 }
                 break;
-            case 0x36: // Memory access control
+            case 0x36:
                 if (p.length === 1) {
                     this.madctl = p[0];
                 }
@@ -162,6 +162,7 @@ export class ILI9341 {
             let r = (color >> 11) & 0x1f;
             const g = (color >> 5) & 0x3f;
             let b = color & 0x1f;
+            // The CYD's panel has BGR subpixels.
             if (!(mad & BGR)) {
                 const t = r;
                 r = b;

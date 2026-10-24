@@ -32,7 +32,7 @@ export class SDCard {
         this.state = 'command';
         this.out = [];
         this.outPos = 0;
-        this.readNext = -1; // Next block of a CMD18 stream, or -1.
+        this.readNext = -1;
         this.writeNext = 0;
         this.writeBuffer = null;
         this.writeLength = 0;
@@ -139,11 +139,11 @@ export class SDCard {
         const respond = (...bytes) => this.queue([0xff, ...bytes]);
         if (app) {
             switch (cmd) {
-                case 41: // SD_SEND_OP_COND: initialisation finishes.
+                case 41:
                     this.idle = false;
                     respond(0x00);
                     return;
-                case 23: // SET_WR_BLK_ERASE_COUNT
+                case 23:
                     respond(this.r1);
                     return;
                 default:
@@ -152,41 +152,41 @@ export class SDCard {
             }
         }
         switch (cmd) {
-            case 0: // GO_IDLE_STATE
+            case 0:
                 this.powerOn();
                 respond(R1_IDLE);
                 return;
-            case 8: // SEND_IF_COND: a version 2 card, echoing the check pattern.
+            case 8:
                 respond(this.r1, 0x00, 0x00, 0x01, arg & 0xff);
                 return;
-            case 55: // APP_CMD
+            case 55:
                 this.appCommand = true;
                 respond(this.r1);
                 return;
-            case 58: // READ_OCR: powered up, high capacity once initialised.
+            case 58:
                 respond(this.r1, this.idle ? 0x00 : 0xc0, 0xff, 0x80, 0x00);
                 return;
-            case 9: // SEND_CSD
+            case 9:
                 respond(this.r1, 0xff, TOKEN_SINGLE, ...this.csd(), 0x00, 0x00);
                 return;
-            case 10: // SEND_CID
+            case 10:
                 respond(this.r1, 0xff, TOKEN_SINGLE, ...CID, 0x00, 0x00);
                 return;
-            case 13: // SEND_STATUS
+            case 13:
                 respond(this.r1, 0x00);
                 return;
-            case 16: // SET_BLOCKLEN: SDHC blocks are always 512 bytes.
+            case 16:
                 respond(arg === BLOCK ? this.r1 : this.r1 | 0x20);
                 return;
-            case 59: // CRC_ON_OFF
+            case 59:
                 respond(this.r1);
                 return;
-            case 12: // STOP_TRANSMISSION
+            case 12:
                 this.readNext = -1;
                 this.clearQueue();
                 respond(0x00);
                 return;
-            case 17: // READ_SINGLE_BLOCK
+            case 17:
                 if (arg >= this.sectors) {
                     respond(R1_ADDRESS_ERROR);
                     return;
@@ -194,7 +194,7 @@ export class SDCard {
                 respond(0x00);
                 this.queueBlock(arg);
                 return;
-            case 18: // READ_MULTIPLE_BLOCK
+            case 18:
                 if (arg >= this.sectors) {
                     respond(R1_ADDRESS_ERROR);
                     return;
@@ -202,8 +202,8 @@ export class SDCard {
                 respond(0x00);
                 this.readNext = arg;
                 return;
-            case 24: // WRITE_BLOCK
-            case 25: // WRITE_MULTIPLE_BLOCK
+            case 24:
+            case 25:
                 if (arg >= this.sectors) {
                     respond(R1_ADDRESS_ERROR);
                     return;
@@ -283,9 +283,9 @@ export function formattedCard(sizeGB) {
     b.setUint32(28, start, true);
     b.setUint32(32, partSectors, true);
     b.setUint32(36, fatSize, true);
-    b.setUint32(44, 2, true); // Root directory cluster.
-    b.setUint16(48, 1, true); // FSInfo sector.
-    b.setUint16(50, 6, true); // Backup boot sector.
+    b.setUint32(44, 2, true);
+    b.setUint16(48, 1, true);
+    b.setUint16(50, 6, true);
     boot[64] = 0x80;
     boot[66] = 0x29;
     b.setUint32(67, (Math.random() * 0xffffffff) >>> 0, true);
@@ -300,7 +300,7 @@ export function formattedCard(sizeGB) {
     i.setUint32(484, 0x61417272, true);
     const clusters = Math.floor((partSectors - reserved - fats * fatSize) / sectorsPerCluster);
     i.setUint32(488, clusters - 1, true);
-    i.setUint32(492, 3, true); // Next free cluster.
+    i.setUint32(492, 3, true);
     i.setUint32(508, 0xaa550000, true);
 
     blocks.set(start, boot);

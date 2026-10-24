@@ -31,7 +31,7 @@ const alarm_sleep_memory_obj_t alarm_sleep_memory_obj = {
 alarm_wake_alarm_union_t alarm_wake_alarm;
 
 static bool _has_time_alarm;
-static uint64_t _wake_at_ms; // time.monotonic(), in ms
+static uint64_t _wake_at_ms;
 static uint8_t _pins[MAX_PIN_ALARMS];
 static uint8_t _values[MAX_PIN_ALARMS];
 static size_t _pin_count;
@@ -96,6 +96,7 @@ static void _set_alarms(bool deep_sleep, size_t n_alarms, const mp_obj_t *alarms
             }
         }
     }
+    // ESP32 deep sleep wakes on one pin of either level (ext0) or a group all low or any high (ext1).
     if (deep_sleep && lows > 2) {
         mp_raise_ValueError(MP_ERROR_TEXT("Can only alarm on two low pins from deep sleep."));
     }

@@ -148,7 +148,7 @@ export class BoardView {
         const element = el(
             'div',
             { className: 'board-cable', hidden: true, 'aria-hidden': 'true' },
-            part('board-cable-cord', 20, 400, 3.2), // Long enough to run off any panel.
+            part('board-cable-cord', 20, 400, 3.2),
             part('board-cable-relief', 15, 21, 4.6),
             part('board-cable-plug', 1.2, 16, 10.4),
             part('board-cable-tip', -0.4, 1.4, 6.8),
@@ -195,6 +195,7 @@ export class BoardView {
         const title = id === 'reset' ? 'Reset: restart the board from power-on' : 'BOOT button (board.BUTTON, GPIO0). Hold to press.';
         Object.assign(button, { title, tabIndex: 0 });
         button.setAttribute('aria-label', title);
+        // Safari doesn't focus a clicked button or tab to one without a tabindex.
         button.addEventListener('pointerdown', () => button.focus());
         if (id === 'reset') {
             button.addEventListener('click', () => this.onReset());

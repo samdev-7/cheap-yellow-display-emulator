@@ -38,7 +38,7 @@ export class CYDBoard {
         this.mode = new Uint8Array(40);
         this.pull = new Uint8Array(40);
         this.level = new Uint8Array(40);
-        this.pwmDuty = new Int32Array(40).fill(-1); // -1 when the pin isn't running PWM.
+        this.pwmDuty = new Int32Array(40).fill(-1);
         this.dac = new Int32Array(40).fill(-1);
 
         this.display = new ILI9341(framebuffer, () => {

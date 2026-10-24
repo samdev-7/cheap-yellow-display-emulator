@@ -98,6 +98,7 @@ async function fetchIdentity(code, nonce, redirectUri, settings) {
         signal: AbortSignal.timeout(10_000),
     }).then((response) => (response.ok ? response.json() : Promise.reject(new Error(`token ${response.status}`))));
 
+    // An ID token from the token endpoint over TLS needs no signature check (OpenID Connect Core 3.1.3.7).
     const claims = decodeJwt(tokens.id_token);
     const now = Date.now() / 1000;
     const audience = [claims?.aud].flat();
