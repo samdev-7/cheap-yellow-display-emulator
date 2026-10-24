@@ -9,3 +9,10 @@ web/dist/
 
 # Local secrets (network proxy keys)
 web/.env*.local
+
+# Claude Code's local settings (the preview servers)
+.claude/
+
+# Collected hardware files (schematics, PCB, board drawings): third-party,
+# kept locally, not redistributed (README.md, Hardware reference)
+research/
