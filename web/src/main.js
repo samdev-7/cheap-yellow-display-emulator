@@ -645,7 +645,7 @@ function showProject() {
 
 function showName() {
     nameInput.value = project.name;
-    document.title = `${project.name} · CYD CircuitPython`;
+    document.title = `${project.name} · CYD Emulator`;
 }
 
 async function switchTo(open) {
