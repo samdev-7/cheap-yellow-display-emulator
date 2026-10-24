@@ -10,7 +10,7 @@
 
 typedef struct {
     mp_obj_base_t base;
-    int id; // network.js's socket number, or -1 once closed.
+    int id; // -1 once closed.
     int type;
     int family;
     int proto;

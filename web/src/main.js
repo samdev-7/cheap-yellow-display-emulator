@@ -163,8 +163,6 @@ function editorState(path, text) {
                     tree.render();
                 }
                 scheduleSave();
-            }
-            if (update.docChanged) {
                 wakatime.edited(openPath, update.state.doc.lines);
             }
             if (update.docChanged || update.selectionSet) {

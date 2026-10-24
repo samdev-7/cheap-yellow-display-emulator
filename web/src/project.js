@@ -79,7 +79,7 @@ export function defaultBoardState() {
         light: 70,
         card: { inserted: false, sizeGB: 8, sectors: 0, blocks: new Map() },
         wifi: { inRange: true, passwordAccepted: true, internet: true, connectInstantly: true },
-        nvm: null,
+        nvm: null, // microcontroller.nvm contents, or null if blank.
     };
 }
 
@@ -88,7 +88,7 @@ export class Project {
         this.id = id;
         this.name = name;
         this.files = new Map(); // path -> Uint8Array
-        this.emptyFolders = new Set(); // Folders with nothing in them yet, like lib/ on a new board.
+        this.emptyFolders = new Set();
         this.board = defaultBoardState();
     }
 
@@ -238,7 +238,7 @@ export class Project {
 
 export class ProjectStore {
     constructor() {
-        this.projects = []; // [{ id, name }], in the order they were made.
+        this.projects = []; // [{ id, name }]
         this.currentId = null;
         this.seeded = false;
     }

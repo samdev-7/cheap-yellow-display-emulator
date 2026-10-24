@@ -259,7 +259,6 @@ mp_int_t common_hal_wifi_radio_ping(wifi_radio_obj_t *self, mp_obj_t ip_address,
     if (!common_hal_wifi_radio_get_connected(self)) {
         return -1;
     }
-    // round trip.
     uint32_t delay = wasm_wifi_delay_ms(WASM_WIFI_DELAY_PING);
     mp_hal_delay_ms(delay);
     return delay ? delay : 20;

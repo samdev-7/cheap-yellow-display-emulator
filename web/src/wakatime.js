@@ -149,7 +149,7 @@ export class WakaTime extends EventTarget {
         this.lineChanges = new Map(); // path: lines typed since the last heartbeat
         this.today = null; // today's total as text, like "1 hr 5 mins"
         this.todayAt = 0;
-        this.error = null; // why the last request failed, or null
+        this.error = null;
         this.sending = false;
         setInterval(() => this.send(), SEND_EVERY_MS);
         document.addEventListener('visibilitychange', () => {

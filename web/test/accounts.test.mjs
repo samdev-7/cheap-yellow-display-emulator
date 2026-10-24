@@ -119,7 +119,7 @@ test('signing in makes a session; only its hash is stored; Hack Club tokens are 
     assert.equal(response.headers.get('location'), `${SITE}/?signin=ok`);
     const cookies = cookiesOf(response);
     assert.ok(cookies.cyd_account.length > 30);
-    assert.equal(cookies.cyd_auth_state, ''); // cleared
+    assert.equal(cookies.cyd_auth_state, '');
     assert.deepEqual(await whoIs(cookies), { name: 'Ada Lovelace', local: false });
 
     const { rows } = await testDb.query('select s.token_hash, u.identity, u.name from sessions s join users u on u.id = s.user_id');

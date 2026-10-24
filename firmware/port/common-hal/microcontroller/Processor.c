@@ -11,6 +11,7 @@
 #include "wasm_hal.h"
 #include "shared-bindings/microcontroller/ResetReason.h"
 
+// CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ
 static uint32_t _frequency_mhz = 240;
 
 float common_hal_mcu_processor_get_temperature(void) {
