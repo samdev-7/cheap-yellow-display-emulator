@@ -13,6 +13,5 @@ web/.env*.local
 # Claude Code's local settings (the preview servers)
 .claude/
 
-# Collected hardware files (schematics, PCB, board drawings): third-party,
-# kept locally, not redistributed (README.md, Hardware reference)
+# Third-party hardware files, kept locally
 research/

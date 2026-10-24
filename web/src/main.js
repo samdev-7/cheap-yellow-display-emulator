@@ -28,7 +28,7 @@ const $ = (id) => document.getElementById(id);
 
 if (!crossOriginIsolated) {
     $('status').textContent =
-        "The emulator can't start: this page isn't served with cross-origin isolation headers (see Deploying in README.md).";
+        "The emulator can't start: this page isn't served with cross-origin isolation headers (COOP and COEP).";
 }
 
 const store = await ProjectStore.load();
