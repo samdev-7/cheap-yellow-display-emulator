@@ -34,4 +34,4 @@ through a small proxy (`web/server/`).
 
 ## License
 
-[GNU AGPL v3](LICENSE). The bundled Adafruit libraries and the files from CircuitPython are MIT licensed.
+Copyright (C) 2026 Sam Liu. Licensed under the [GNU AGPL v3](LICENSE). The bundled Adafruit libraries and the files from CircuitPython are MIT licensed.
