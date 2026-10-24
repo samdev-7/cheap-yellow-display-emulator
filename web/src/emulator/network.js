@@ -17,7 +17,7 @@ export const ERRNO = {
 };
 export const DNS_NOT_FOUND = 1000;
 
-const ANSWER = {
+export const ANSWER = {
     STATE: 0, // 0 waiting, 1 answered (size or error known), 2 body copied.
     VALUE: 1, // Response size in bytes, or the IPv4 address for a lookup.
     ERROR: 2, // errno, or DNS_NOT_FOUND, when the request failed.
@@ -291,10 +291,7 @@ export class Network {
             return -error;
         }
         if (state === 1) {
-            if (!request.body) {
-                request.body = new SharedArrayBuffer(Atomics.load(answer, ANSWER.VALUE));
-                this.post({ type: 'net-body', id: answer.id, body: request.body });
-            }
+            this.askForBody(request);
             return -ERRNO.EAGAIN;
         }
         socket.inbox.push(new Uint8Array(request.body).slice());
@@ -321,9 +318,8 @@ export class Network {
         for (const request of [...socket.requests]) {
             const answer = request.answer;
             const state = Atomics.load(answer, ANSWER.STATE);
-            if (state === 1 && !Atomics.load(answer, ANSWER.ERROR) && !request.body) {
-                request.body = new SharedArrayBuffer(Atomics.load(answer, ANSWER.VALUE));
-                this.post({ type: 'net-body', id: answer.id, body: request.body });
+            if (state === 1 && !Atomics.load(answer, ANSWER.ERROR)) {
+                this.askForBody(request);
             } else if (state === 2 || (state === 1 && Atomics.load(answer, ANSWER.ERROR))) {
                 socket.requests.splice(socket.requests.indexOf(request), 1);
                 if (state === 2) socket.inbox.push({ from: request.from, port: request.port, data: new Uint8Array(request.body).slice() });
@@ -334,6 +330,12 @@ export class Network {
         socket.inbox.shift();
         const bytes = datagram.data.subarray(0, length);
         return { result: bytes.length, bytes, from: datagram.from, port: datagram.port };
+    }
+
+    askForBody(request) {
+        if (request.body) return;
+        request.body = new SharedArrayBuffer(Atomics.load(request.answer, ANSWER.VALUE));
+        this.post({ type: 'net-body', id: request.answer.id, body: request.body });
     }
 
     readable(id) {
@@ -433,7 +435,7 @@ export function formatIPv4(ip) {
     return [24, 16, 8, 0].map((shift) => (ip >>> shift) & 255).join('.');
 }
 
-function concat(a, b) {
+export function concat(a, b) {
     const out = new Uint8Array(a.length + b.length);
     out.set(a);
     out.set(b, a.length);
