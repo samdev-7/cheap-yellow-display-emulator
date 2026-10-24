@@ -20,6 +20,7 @@ import { WIFI_MODE } from './emulator/network.js';
 import { RESET_REASON } from './emulator/shared.js';
 import { BoardView } from './ui/boardView.js';
 import { FileTree } from './ui/fileTree.js';
+import { el } from './ui/el.js';
 import { Menu } from './ui/menu.js';
 import { initSplitters } from './ui/splitters.js';
 import { SERVERS, WakaTime, normaliseApiUrl, validApiKey } from './wakatime.js';
@@ -80,19 +81,8 @@ const tree = new FileTree($('file-tree'), project, {
     },
     renamed: (from, to) => {
         project.rename(from, to);
-        for (const path of [...unsaved]) {
-            if (path === from || path.startsWith(from + '/')) {
-                unsaved.delete(path);
-                unsaved.add(to + path.slice(from.length));
-            }
-        }
-        for (const [path, state] of [...editorStates]) {
-            if (path === from || path.startsWith(from + '/')) {
-                editorStates.delete(path);
-                editorStates.set(to + path.slice(from.length), state);
-            }
-        }
-        if (openPath === from || openPath.startsWith(from + '/')) {
+        remap(from, to);
+        if (within(openPath, from)) {
             openPath = to + openPath.slice(from.length);
             reopen();
         }
@@ -100,12 +90,7 @@ const tree = new FileTree($('file-tree'), project, {
     },
     deleted: (path) => {
         project.remove(path);
-        for (const key of [...unsaved]) {
-            if (key === path || key.startsWith(path + '/')) unsaved.delete(key);
-        }
-        for (const key of [...editorStates.keys()]) {
-            if (key === path || key.startsWith(path + '/')) editorStates.delete(key);
-        }
+        remap(path, null);
         if (!project.has(openPath)) {
             openPath = firstFile();
             reopen();
@@ -113,6 +98,21 @@ const tree = new FileTree($('file-tree'), project, {
         changed();
     },
 });
+
+const within = (path, folder) => path === folder || path.startsWith(folder + '/');
+
+function remap(from, to) {
+    for (const path of [...unsaved]) {
+        if (!within(path, from)) continue;
+        unsaved.delete(path);
+        if (to) unsaved.add(to + path.slice(from.length));
+    }
+    for (const [path, state] of [...editorStates]) {
+        if (!within(path, from)) continue;
+        editorStates.delete(path);
+        if (to) editorStates.set(to + path.slice(from.length), state);
+    }
+}
 
 function changed() {
     keep();
@@ -194,11 +194,9 @@ function reopen() {
     if (text === null) {
         view?.destroy();
         view = null;
-        editorHost.innerHTML = '';
-        const note = document.createElement('div');
-        note.className = 'binary';
-        note.textContent = `${openPath.slice(1)} is a binary file (${project.read(openPath).length} bytes). It is copied to the board as is.`;
-        editorHost.append(note);
+        editorHost.replaceChildren(
+            el('div', { className: 'binary', textContent: `${openPath.slice(1)} is a binary file (${project.read(openPath).length} bytes). It is copied to the board as is.` }),
+        );
     } else {
         const state = editorStates.get(openPath) ?? editorState(openPath, text);
         if (view) {
@@ -477,21 +475,12 @@ function trackActivity(isWrite = false) {
 function showWakatime() {
     const button = $('wakatime');
     const name = wakatime.server?.name ?? 'WakaTime';
-    let text;
-    let title;
-    if (!wakatime.settings.apiKey) {
-        text = 'WakaTime';
-        title = 'Track your coding time with WakaTime or Hackatime';
-    } else if (!wakatime.settings.enabled) {
-        text = 'Not tracking';
-        title = `${name}: tracking is off`;
-    } else if (wakatime.error) {
-        text = wakatime.today ?? name;
-        title = `${name}: ${wakatime.error}`;
-    } else {
-        text = wakatime.today ?? name;
-        title = `${name}: your coding time today`;
-    }
+    const { apiKey, enabled } = wakatime.settings;
+    const [text, title] = !apiKey
+        ? ['WakaTime', 'Track your coding time with WakaTime or Hackatime']
+        : !enabled
+          ? ['Not tracking', `${name}: tracking is off`]
+          : [wakatime.today ?? name, `${name}: ${wakatime.error ?? 'your coding time today'}`];
     $('wakatime-text').textContent = text;
     button.title = title;
     button.setAttribute('aria-label', title);
@@ -528,18 +517,9 @@ function chosenServer() {
 function showServerChoice() {
     const server = chosenServer();
     $('wakatime-url-field').hidden = Boolean(server);
-    const help = $('wakatime-key-help');
-    help.textContent = '';
-    if (server) {
-        const link = document.createElement('a');
-        link.href = server.keyPage;
-        link.target = '_blank';
-        link.rel = 'noopener';
-        link.textContent = `Get your ${server.name} API key`;
-        help.append(link);
-    } else {
-        help.textContent = 'The api_key from your .wakatime.cfg.';
-    }
+    $('wakatime-key-help').replaceChildren(
+        server ? el('a', { href: server.keyPage, target: '_blank', rel: 'noopener', textContent: `Get your ${server.name} API key` }) : 'The api_key from your .wakatime.cfg.',
+    );
 }
 
 function openWakatimeSettings() {
@@ -847,9 +827,7 @@ $('download').onclick = async () => {
         zip.file(path.slice(1), data);
     }
     const blob = await zip.generateAsync({ type: 'blob' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = `${project.name.replace(/[\\/:*?"<>|]+/g, '-')}.zip`;
+    const link = el('a', { href: URL.createObjectURL(blob), download: `${project.name.replace(/[\\/:*?"<>|]+/g, '-')}.zip` });
     link.click();
     URL.revokeObjectURL(link.href);
 };

@@ -2,6 +2,7 @@ import frontSvg from '../assets/board-front.svg?raw';
 import backSvg from '../assets/board-back.svg?raw';
 import { SCREEN_HEIGHT, SCREEN_WIDTH } from '../emulator/shared.js';
 import { analogInValue, lightLux, lightSensorMillivolts } from '../emulator/analog.js';
+import { el } from './el.js';
 
 const [VIEW_W, VIEW_H] = frontSvg.match(/viewBox="[\d.-]+ [\d.-]+ ([\d.]+) ([\d.]+)"/).slice(1).map(Number);
 
@@ -12,11 +13,14 @@ const LIGHT_DIAL = { y: 38.0, size: 5.6 };
 
 const percent = (value, total) => `${(value / total) * 100}%`;
 
-function place(element, x, y, w, h) {
-    element.style.left = percent(x - w / 2, VIEW_W);
-    element.style.top = percent(y - h / 2, VIEW_H);
-    element.style.width = percent(w, VIEW_W);
-    element.style.height = percent(h, VIEW_H);
+function place(element, x, y, w, h, viewW = VIEW_W, viewH = VIEW_H) {
+    Object.assign(element.style, {
+        left: percent(x - w / 2, viewW),
+        top: percent(y - h / 2, viewH),
+        width: percent(w, viewW),
+        height: percent(h, viewH),
+    });
+    return element;
 }
 
 function boxOf(svg, selector) {
@@ -31,18 +35,14 @@ function boxOf(svg, selector) {
 }
 
 function face(className, svgText) {
-    const element = document.createElement('div');
-    element.className = `board-face ${className}`;
-    element.innerHTML = svgText.replace(/<\?xml[^>]*>\s*/, '');
+    const overlay = el('div', { className: 'board-overlay' });
+    const glow = el('div', { className: 'board-glow' });
+    const element = el('div', { className: `board-face ${className}`, innerHTML: svgText.replace(/<\?xml[^>]*>\s*/, '') });
+    element.append(overlay, glow);
     const svg = element.querySelector('svg');
     svg.removeAttribute('width');
     svg.removeAttribute('height');
     svg.setAttribute('aria-hidden', 'true');
-    const overlay = document.createElement('div');
-    overlay.className = 'board-overlay';
-    const glow = document.createElement('div');
-    glow.className = 'board-glow';
-    element.append(overlay, glow);
     return { element, svg, overlay, glow };
 }
 
@@ -65,21 +65,11 @@ export class BoardView {
         this.onLight = onLight;
         this.host = host;
         host.classList.add('board-view');
-        this.flipper = document.createElement('div');
-        this.flipper.className = 'board-flipper';
-        host.append(this.flipper);
-
         this.front = face('front', frontSvg);
         this.back = face('back', backSvg);
         this.back.element.hidden = true;
-        this.flipper.append(this.front.element, this.back.element);
-
-        this.tip = document.createElement('div');
-        this.tip.className = 'board-tip';
-        this.tip.id = 'board-tip';
-        this.tip.setAttribute('role', 'tooltip');
-        this.tip.hidden = true;
-        host.append(this.tip);
+        this.tip = el('div', { className: 'board-tip', id: 'board-tip', role: 'tooltip', hidden: true });
+        host.append(el('div', { className: 'board-flipper' }, this.front.element, this.back.element), this.tip);
         this.tipTarget = null;
 
         this.leds = [];
@@ -105,25 +95,18 @@ export class BoardView {
         const { svg, overlay } = this.front;
 
         const area = boxOf(svg, '#screen');
-        this.canvas = document.createElement('canvas');
-        this.canvas.width = SCREEN_WIDTH;
-        this.canvas.height = SCREEN_HEIGHT;
-        this.canvas.className = 'board-screen';
-        this.canvas.setAttribute('aria-label', 'Board display. Click or drag to touch the screen.');
-        place(this.canvas, area.x, area.y, area.w, area.h);
-        this.dim = document.createElement('div');
-        this.dim.className = 'board-screen-dim';
-        place(this.dim, area.x, area.y, area.w, area.h);
+        this.canvas = place(
+            el('canvas', { width: SCREEN_WIDTH, height: SCREEN_HEIGHT, className: 'board-screen', 'aria-label': 'Board display. Click or drag to touch the screen.' }),
+            area.x, area.y, area.w, area.h,
+        );
+        this.dim = place(el('div', { className: 'board-screen-dim' }), area.x, area.y, area.w, area.h);
         overlay.append(this.canvas, this.dim);
         this.attachTouch();
 
-        const reset = this.button('RST', 'Reset: restart the board from power-on');
-        place(reset, FRONT_RESET.x, FRONT_RESET.y, 5.2, 5.2);
-        const boot = this.button('BOOT', 'BOOT button (board.BUTTON, GPIO0). Hold to press.');
-        place(boot, FRONT_BOOT.x, FRONT_BOOT.y, 5.2, 5.2);
-        overlay.append(reset, boot);
-        this.wireReset(reset);
-        this.wireBoot(boot);
+        for (const [id, label, at] of [['reset', 'RST', FRONT_RESET], ['boot', 'BOOT', FRONT_BOOT]]) {
+            const button = el('button', { className: 'board-button' }, el('span', { className: 'board-button-label', textContent: label }));
+            overlay.append(this.wireButton(id, place(button, at.x, at.y, 5.2, 5.2)));
+        }
 
         const ldr = boxOf(svg, '#ldr');
         overlay.append(this.lightDial(ldr.x, LIGHT_DIAL.y));
@@ -135,35 +118,14 @@ export class BoardView {
     buildBack() {
         const { svg, overlay } = this.back;
 
-        for (const [id, label, title] of [
-            ['reset', 'RESET', 'Reset: restart the board from power-on'],
-            ['boot', 'BOOT', 'BOOT button (board.BUTTON, GPIO0). Hold to press.'],
-        ]) {
+        for (const [id, label] of [['reset', 'RESET'], ['boot', 'BOOT']]) {
             const body = boxOf(svg, `#button-${id}`);
             const cap = boxOf(svg, `#button-${id}-cap`);
-            const button = document.createElement('button');
-            button.className = 'board-hotspot';
-            button.title = title;
-            button.setAttribute('aria-label', title);
-            place(button, body.x, body.y, body.w, body.h);
-            const pressedCap = document.createElement('span');
-            pressedCap.className = 'board-hotspot-cap';
-            pressedCap.style.left = percent(cap.x - (body.x - body.w / 2) - cap.w / 2, body.w);
-            pressedCap.style.top = percent(cap.y - (body.y - body.h / 2) - cap.h / 2, body.h);
-            pressedCap.style.width = percent(cap.w, body.w);
-            pressedCap.style.height = percent(cap.h, body.h);
-            button.append(pressedCap);
-            const silk = document.createElement('span');
-            silk.className = 'board-silk';
-            silk.textContent = label;
-            silk.style.left = percent(body.x, VIEW_W);
-            silk.style.top = percent(body.y + body.h / 2 + 0.6, VIEW_H);
-            overlay.append(button, silk);
-            if (id === 'reset') {
-                this.wireReset(button);
-            } else {
-                this.wireBoot(button);
-            }
+            const pressedCap = place(el('span', { className: 'board-hotspot-cap' }), cap.x - body.x + body.w / 2, cap.y - body.y + body.h / 2, cap.w, cap.h, body.w, body.h);
+            const button = place(el('button', { className: 'board-hotspot' }, pressedCap), body.x, body.y, body.w, body.h);
+            const silk = el('span', { className: 'board-silk', textContent: label });
+            Object.assign(silk.style, { left: percent(body.x, VIEW_W), top: percent(body.y + body.h / 2 + 0.6, VIEW_H) });
+            overlay.append(this.wireButton(id, button), silk);
         }
 
         const pkg = boxOf(svg, '#led');
@@ -181,26 +143,18 @@ export class BoardView {
     }
 
     cable(overlay, edge, dir, y) {
-        const element = document.createElement('div');
-        element.className = 'board-cable';
-        element.hidden = true;
-        element.setAttribute('aria-hidden', 'true');
-        const part = (className, start, end, height) => {
-            const piece = document.createElement('div');
-            piece.className = className;
-            const x0 = edge + dir * start;
-            const x1 = edge + dir * end;
-            place(piece, (x0 + x1) / 2, y, Math.abs(x1 - x0), height);
-            element.append(piece);
-        };
-        part('board-cable-cord', 20, 400, 3.2); // Long enough to run off any panel.
-        part('board-cable-relief', 15, 21, 4.6);
-        part('board-cable-plug', 1.2, 16, 10.4);
-        part('board-cable-tip', -0.4, 1.4, 6.8);
+        const part = (className, start, end, height) =>
+            place(el('div', { className }), edge + (dir * (start + end)) / 2, y, end - start, height);
+        const element = el(
+            'div',
+            { className: 'board-cable', hidden: true, 'aria-hidden': 'true' },
+            part('board-cable-cord', 20, 400, 3.2), // Long enough to run off any panel.
+            part('board-cable-relief', 15, 21, 4.6),
+            part('board-cable-plug', 1.2, 16, 10.4),
+            part('board-cable-tip', -0.4, 1.4, 6.8),
+        );
         overlay.append(element);
-        const plug = document.createElement('button');
-        plug.className = 'board-cable-hotspot';
-        place(plug, edge + dir * 8, y, 18, 10.4);
+        const plug = place(el('button', { className: 'board-cable-hotspot' }), edge + dir * 8, y, 18, 10.4);
         plug.addEventListener('click', () => this.onPower());
         element.addEventListener('click', () => this.onPower());
         overlay.append(plug);
@@ -211,11 +165,7 @@ export class BoardView {
     buildCards() {
         this.cards = [this.front, this.back].map((face) => {
             const end = boxOf(face.svg, '#sd-card');
-            const card = document.createElement('div');
-            card.className = 'board-sdcard';
-            card.hidden = true;
-            card.setAttribute('aria-hidden', 'true');
-            place(card, end.x, end.y, end.w, end.h);
+            const card = place(el('div', { className: 'board-sdcard', hidden: true, 'aria-hidden': 'true' }), end.x, end.y, end.w, end.h);
             if (face === this.front) {
                 face.element.prepend(card);
             } else {
@@ -241,29 +191,15 @@ export class BoardView {
         }
     }
 
-    button(label, title) {
-        const button = document.createElement('button');
-        button.className = 'board-button';
-        button.title = title;
+    wireButton(id, button) {
+        const title = id === 'reset' ? 'Reset: restart the board from power-on' : 'BOOT button (board.BUTTON, GPIO0). Hold to press.';
+        Object.assign(button, { title, tabIndex: 0 });
         button.setAttribute('aria-label', title);
-        const tag = document.createElement('span');
-        tag.className = 'board-button-label';
-        tag.textContent = label;
-        button.append(tag);
-        return button;
-    }
-
-    wireReset(button) {
-        this.focusable(button);
-        button.addEventListener('click', () => this.onReset());
-    }
-
-    focusable(button) {
-        button.tabIndex = 0;
         button.addEventListener('pointerdown', () => button.focus());
-    }
-
-    wireBoot(button) {
+        if (id === 'reset') {
+            button.addEventListener('click', () => this.onReset());
+            return button;
+        }
         const press = (down) => {
             for (const b of this.bootButtons) {
                 b.classList.toggle('pressed', down);
@@ -271,7 +207,6 @@ export class BoardView {
             this.emulator.setBootButton(down);
         };
         this.bootButtons = [...(this.bootButtons ?? []), button];
-        this.focusable(button);
         button.addEventListener('pointerdown', (event) => {
             button.setPointerCapture(event.pointerId);
             press(true);
@@ -284,27 +219,15 @@ export class BoardView {
                 setTimeout(() => press(false), BOOT_TAP_MS);
             }
         });
+        return button;
     }
 
     led(side, x, y, w, h, lensR, drawPackage) {
-        const element = document.createElement('div');
-        element.className = 'board-led';
+        const lens = el('div', { className: 'board-led-lens' });
+        Object.assign(lens.style, { width: percent(2 * lensR, w), height: percent(2 * lensR, h) });
+        const element = place(el('div', { className: 'board-led' }, ...(drawPackage ? [el('div', { className: 'board-led-package' })] : []), lens), x, y, w, h);
         this.attachTip(element, () => this.ledTip());
-        place(element, x, y, w, h);
-        const lens = document.createElement('div');
-        lens.className = 'board-led-lens';
-        lens.style.width = percent(2 * lensR, w);
-        lens.style.height = percent(2 * lensR, h);
-        if (drawPackage) {
-            const body = document.createElement('div');
-            body.className = 'board-led-package';
-            element.append(body);
-        }
-        element.append(lens);
-        const bloom = document.createElement('div');
-        bloom.className = 'board-led-bloom';
-        const size = lensR * 2 * 7;
-        place(bloom, x, y, size, size);
+        const bloom = place(el('div', { className: 'board-led-bloom' }), x, y, lensR * 14, lensR * 14);
         side.glow.append(bloom);
         const state = { element, lens, bloom };
         this.leds.push(state);
@@ -343,17 +266,13 @@ export class BoardView {
     }
 
     lightDial(x, y) {
-        const dial = document.createElement('div');
-        dial.className = 'board-light';
-        dial.tabIndex = 0;
-        dial.setAttribute('role', 'slider');
-        dial.setAttribute('aria-label', 'Light on the light sensor');
-        dial.setAttribute('aria-valuemin', '0');
-        dial.setAttribute('aria-valuemax', '100');
+        const value = el('span', { className: 'board-light-value' });
+        const dial = el(
+            'div',
+            { className: 'board-light', tabIndex: 0, role: 'slider', 'aria-label': 'Light on the light sensor', 'aria-valuemin': '0', 'aria-valuemax': '100' },
+            value,
+        );
         place(dial, x, y, LIGHT_DIAL.size, LIGHT_DIAL.size);
-        const value = document.createElement('span');
-        value.className = 'board-light-value';
-        dial.append(value);
 
         let level = 70;
         let reading = null;
@@ -481,14 +400,7 @@ export class BoardView {
         const key = parts.map((part) => part.text).join(' ');
         if (key !== this.tipText) {
             this.tipText = key;
-            this.tip.replaceChildren(
-                ...parts.map(({ text, className }) => {
-                    const span = document.createElement('span');
-                    span.textContent = text;
-                    if (className) span.className = className;
-                    return span;
-                }),
-            );
+            this.tip.replaceChildren(...parts.map(({ text, className = '' }) => el('span', { textContent: text, className })));
         }
         this.placeTip();
     }

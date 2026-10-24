@@ -1,9 +1,10 @@
+import { el } from './el.js';
+
+const separator = () => el('div', { className: 'menu-separator', role: 'separator' });
+
 export class Menu {
     constructor() {
-        this.element = document.createElement('div');
-        this.element.className = 'menu';
-        this.element.setAttribute('role', 'menu');
-        this.element.hidden = true;
+        this.element = el('div', { className: 'menu', role: 'menu', hidden: true });
         document.body.append(this.element);
         this.anchor = null;
         document.addEventListener('pointerdown', (event) => {
@@ -44,14 +45,9 @@ export class Menu {
     show(items, back) {
         this.element.innerHTML = '';
         if (back) {
-            const button = document.createElement('button');
-            button.className = 'menu-back';
-            button.setAttribute('role', 'menuitem');
-            button.textContent = back.title;
-            button.setAttribute('aria-label', `Back from ${back.title}`);
+            const button = el('button', { className: 'menu-back', role: 'menuitem', textContent: back.title, 'aria-label': `Back from ${back.title}` });
             button.addEventListener('click', () => this.show(back.items, back.parent));
-            this.element.append(button);
-            this.element.append(separator());
+            this.element.append(button, separator());
         }
         for (const item of items) {
             if (!item) {
@@ -59,40 +55,21 @@ export class Menu {
                 continue;
             }
             if (item.heading) {
-                const heading = document.createElement('div');
-                heading.className = 'menu-heading';
-                heading.textContent = item.heading;
-                this.element.append(heading);
+                this.element.append(el('div', { className: 'menu-heading', textContent: item.heading }));
                 continue;
             }
-            const button = document.createElement('button');
-            button.setAttribute('role', item.checked === undefined ? 'menuitem' : 'menuitemcheckbox');
-            if (item.checked !== undefined) {
-                button.setAttribute('aria-checked', String(item.checked));
-                const mark = document.createElement('span');
-                mark.className = 'menu-check';
-                mark.textContent = item.checked ? '✓' : '';
-                button.append(mark);
-            }
-            const label = document.createElement('span');
-            label.className = 'menu-label';
-            label.textContent = item.label;
-            button.append(label);
-            if (item.detail) {
-                const detail = document.createElement('span');
-                detail.className = 'menu-detail';
-                detail.textContent = item.detail;
-                button.append(detail);
-            }
-            if (item.danger) button.classList.add('danger');
-            if (item.disabled) button.disabled = true;
+            const checkable = item.checked !== undefined;
+            const button = el(
+                'button',
+                { role: checkable ? 'menuitemcheckbox' : 'menuitem', className: item.danger ? 'danger' : '', disabled: Boolean(item.disabled) },
+                ...(checkable ? [el('span', { className: 'menu-check', textContent: item.checked ? '✓' : '' })] : []),
+                el('span', { className: 'menu-label', textContent: item.label }),
+                ...(item.detail ? [el('span', { className: 'menu-detail', textContent: item.detail })] : []),
+            );
+            if (checkable) button.setAttribute('aria-checked', String(item.checked));
             if (item.submenu) {
                 button.setAttribute('aria-haspopup', 'menu');
-                const arrow = document.createElement('span');
-                arrow.className = 'menu-arrow';
-                arrow.textContent = '›';
-                arrow.setAttribute('aria-hidden', 'true');
-                button.append(arrow);
+                button.append(el('span', { className: 'menu-arrow', textContent: '›', 'aria-hidden': 'true' }));
                 button.addEventListener('click', () =>
                     this.show(item.submenu(), { title: item.label, items, parent: back }),
                 );
@@ -127,11 +104,4 @@ export class Menu {
         if (returnFocus) this.anchor?.focus();
         this.anchor = null;
     }
-}
-
-function separator() {
-    const element = document.createElement('div');
-    element.className = 'menu-separator';
-    element.setAttribute('role', 'separator');
-    return element;
 }
