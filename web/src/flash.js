@@ -42,7 +42,12 @@ export async function flashDevice(port, drive, { status, progress }) {
             compress: true,
             reportProgress: (index, written, total) => progress((index + written / total) / files.length),
         });
-        await loader.after('hard_reset');
+        // RST: RTS pulls EN low; DTR low keeps GPIO0 high for a normal boot.
+        // esptool-js's hard_reset only releases RTS.
+        await transport.setDTR(false);
+        await transport.setRTS(true);
+        await new Promise((resolve) => setTimeout(resolve, 100));
+        await transport.setRTS(false);
     } finally {
         await transport.disconnect();
     }
