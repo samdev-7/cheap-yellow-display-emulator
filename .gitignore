@@ -1,17 +1,8 @@
-# CircuitPython checkout, Python venv and build output (firmware/build.sh)
+.DS_Store
+.claude/
+research/
 firmware/.build/
-
-# Web app
 web/node_modules/
 web/dist/
-
-.DS_Store
-
-# Local secrets (network proxy keys)
 web/.env*.local
-
-# Claude Code's local settings (the preview servers)
-.claude/
-
-# Third-party hardware files, kept locally
-research/
+web/public/circuitpython/

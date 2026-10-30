@@ -1,4 +1,4 @@
-import { CTRL, SERIAL_SIZE, unpackCard, unpackOps } from './shared.js';
+import { CTRL, SERIAL_SIZE, unpackCard } from './shared.js';
 import { CYDBoard } from './board.js';
 import { Network } from './network.js';
 import { Speed } from './speed.js';
@@ -7,8 +7,8 @@ const OUTPUT_FLUSH_MS = 16;
 const OUTPUT_FLUSH_BYTES = 4096;
 const SD_SYNC_MS = 500;
 
-export function createHal(shared, files, post, card, { realSpeed = true, costScale = 1 } = {}) {
-    const { ctrl, serial, mailbox, sdArea, nvm, sleepMemory } = shared;
+export function createHal(shared, files, post, card, { realSpeed = true, costScale = 1, generation = 0 } = {}) {
+    const { ctrl, serial, sdArea, nvm, sleepMemory } = shared;
     const board = new CYDBoard(shared, card);
     board.reset();
 
@@ -37,9 +37,16 @@ export function createHal(shared, files, post, card, { realSpeed = true, costSca
         }
     };
 
+    // A terminated worker can keep running inside WebAssembly; a board that
+    // has been replaced stops at its next wait or poll.
+    const replaced = () => {
+        if (Atomics.load(ctrl, CTRL.GENERATION) !== generation) throw new Error('Replaced by a newer board.');
+    };
+
     const halt = () => {
         for (;;) {
             Atomics.wait(ctrl, CTRL.WAKE, Atomics.load(ctrl, CTRL.WAKE));
+            replaced();
         }
     };
 
@@ -73,6 +80,7 @@ export function createHal(shared, files, post, card, { realSpeed = true, costSca
             syncNvm();
         }
         Atomics.wait(ctrl, CTRL.WAKE, Atomics.load(ctrl, CTRL.WAKE), ms);
+        replaced();
     };
     const sleep = (ms) => {
         const start = performance.now();
@@ -91,14 +99,25 @@ export function createHal(shared, files, post, card, { realSpeed = true, costSca
         report: (ratio) => post({ type: 'speed', ratio }),
     });
 
-    let pendingOps = files.map((f) => ({ kind: 1, path: f.path, data: f.data }));
-    let fromMailbox = false;
+    const pendingFiles = [...files];
+
+    const serveDrive = () => {
+        if (hal.driveImage && Atomics.exchange(ctrl, CTRL.DRIVE_REQUEST, 0)) {
+            const bytes = hal.driveImage();
+            post({ type: 'drive-image', bytes }, [bytes.buffer]);
+        }
+    };
 
     const hal = {
         nowUs: () => (performance.now() - start) * 1000,
-        idle: (ms) => sleep(ms),
+        idle: (ms) => {
+            sleep(ms);
+            serveDrive();
+        },
         background: () => {
+            replaced();
             speed.tick();
+            serveDrive();
             if (++backgroundCalls & 0xf) {
                 return;
             }
@@ -177,11 +196,10 @@ export function createHal(shared, files, post, card, { realSpeed = true, costSca
             Atomics.store(ctrl, CTRL.SERIAL_TAIL, (tail + 1) % SERIAL_SIZE);
             return c;
         },
-        serialCheckInterrupt: () => {
-            if (Atomics.load(ctrl, CTRL.CTRL_C) === 0) {
+        serialCheckInterrupt: (enabled) => {
+            if (Atomics.exchange(ctrl, CTRL.CTRL_C, 0) === 0 || !enabled) {
                 return false;
             }
-            Atomics.store(ctrl, CTRL.CTRL_C, 0);
             Atomics.store(ctrl, CTRL.SERIAL_TAIL, Atomics.load(ctrl, CTRL.SERIAL_HEAD));
             return true;
         },
@@ -197,23 +215,8 @@ export function createHal(shared, files, post, card, { realSpeed = true, costSca
         adcRead: (pin) => board.adcRead(pin),
         dacWrite: (pin, value) => board.dacWrite(pin, value),
 
-        fsNextOp: () => {
-            if (pendingOps.length === 0 && !fromMailbox && Atomics.load(ctrl, CTRL.MAILBOX_STATE) === 1) {
-                pendingOps = unpackOps(mailbox);
-                fromMailbox = true;
-            }
-            return pendingOps.shift() ?? null;
-        },
-        fsOpsDone: (errors) => {
-            const saved = fromMailbox;
-            if (fromMailbox) {
-                fromMailbox = false;
-                Atomics.store(ctrl, CTRL.MAILBOX_STATE, 0);
-            }
-            post({ type: 'files-applied', errors, saved });
-        },
-        flashLoad: () => {},
-        flashDirty: () => {},
+        fsNextOp: () => pendingFiles.shift() ?? null,
+        fsOpsDone: (errors) => post({ type: 'files-applied', errors }),
 
         net: new Network(ctrl, post),
         vmCounters: (readOpcodes, readCalls) => speed.counters(readOpcodes, readCalls),

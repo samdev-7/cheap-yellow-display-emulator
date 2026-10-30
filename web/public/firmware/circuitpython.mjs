@@ -592,9 +592,9 @@ async function createWasm() {
 
   var _wasm_dac_write = (pin, value) => Module.hal.dacWrite(pin, value);
 
-  var _wasm_flash_dirty = (offset, len) => Module.hal.flashDirty(offset, len);
-
-  var _wasm_flash_load = (ptr, len) => Module.hal.flashLoad(HEAPU8.subarray(ptr, ptr + len));
+  var _wasm_flash_init = (ptr, len) => {
+          Module.hal.driveImage = () => HEAPU8.slice(ptr, ptr + len);
+      };
 
   var stringToUTF8Array = (str, heap, outIdx, maxBytesToWrite) => {
       // Parameter maxBytesToWrite is not optional. Negative values, 0, null,
@@ -647,9 +647,9 @@ async function createWasm() {
               return 0;
           }
           stringToUTF8(op.path, pathPtr, pathCap);
-          HEAPU32[lenPtr >> 2] = op.data ? op.data.length : 0;
+          HEAPU32[lenPtr >> 2] = op.data.length;
           Module.hal.fsCurrent = op;
-          return op.kind;
+          return 1;
       };
 
   var _wasm_fs_op_data = (dest) => {
@@ -745,7 +745,7 @@ async function createWasm() {
 
   var _wasm_serial_available = () => Module.hal.serialAvailable();
 
-  var _wasm_serial_check_interrupt = () => (Module.hal.serialCheckInterrupt() ? 1 : 0);
+  var _wasm_serial_check_interrupt = (enabled) => (Module.hal.serialCheckInterrupt(enabled) ? 1 : 0);
 
   var _wasm_serial_read = () => Module.hal.serialRead();
 
@@ -900,9 +900,7 @@ var wasmImports = {
   /** @export */
   wasm_dac_write: _wasm_dac_write,
   /** @export */
-  wasm_flash_dirty: _wasm_flash_dirty,
-  /** @export */
-  wasm_flash_load: _wasm_flash_load,
+  wasm_flash_init: _wasm_flash_init,
   /** @export */
   wasm_fs_next_op: _wasm_fs_next_op,
   /** @export */

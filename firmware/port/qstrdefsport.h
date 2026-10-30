@@ -2,3 +2,4 @@
 //
 // SPDX-License-Identifier: MIT
 
+// qstr extraction includes this file each time; it has no #pragma once.

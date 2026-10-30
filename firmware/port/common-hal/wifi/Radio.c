@@ -20,10 +20,10 @@
 
 #include "wasm_hal.h"
 
-#define DHCP_ADDRESS 0xc0a8012a // 192.168.1.42
-#define DHCP_GATEWAY 0xc0a80101 // 192.168.1.1
-#define DHCP_SUBNET 0xffffff00 // 255.255.255.0
-#define AP_ADDRESS 0xc0a80401 // 192.168.4.1, the ESP32's soft AP default.
+#define DHCP_ADDRESS 0xc0a8012a
+#define DHCP_GATEWAY 0xc0a80101
+#define DHCP_SUBNET 0xffffff00
+#define AP_ADDRESS 0xc0a80401
 
 static bool ap_active = false;
 
@@ -259,7 +259,6 @@ mp_int_t common_hal_wifi_radio_ping(wifi_radio_obj_t *self, mp_obj_t ip_address,
     if (!common_hal_wifi_radio_get_connected(self)) {
         return -1;
     }
-    // round trip.
     uint32_t delay = wasm_wifi_delay_ms(WASM_WIFI_DELAY_PING);
     mp_hal_delay_ms(delay);
     return delay ? delay : 20;

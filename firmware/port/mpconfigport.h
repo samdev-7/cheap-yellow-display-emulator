@@ -27,6 +27,7 @@
 
 #define CIRCUITPY_INTERNAL_NVM_SIZE         (8 * 1024)
 
+// JS throttles the VM to an ESP32's speed from these opcode and call counts.
 extern uint32_t wasm_vm_opcodes;
 extern uint32_t wasm_vm_calls;
 #define MICROPY_VM_HOOK_OPCODE(op) do { \
@@ -36,4 +37,5 @@ extern uint32_t wasm_vm_calls;
         } \
 } while (0)
 
+// gc.mem_free() after ESP-IDF and Wi-Fi start on an ESP32 without PSRAM.
 #define WASM_PORT_HEAP_SIZE                 (160 * 1024)

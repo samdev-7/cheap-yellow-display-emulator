@@ -20,6 +20,7 @@ import { WIFI_MODE } from './emulator/network.js';
 import { RESET_REASON } from './emulator/shared.js';
 import { BoardView } from './ui/boardView.js';
 import { FileTree } from './ui/fileTree.js';
+import { el } from './ui/el.js';
 import { Menu } from './ui/menu.js';
 import { initSplitters } from './ui/splitters.js';
 import { SERVERS, WakaTime, normaliseApiUrl, validApiKey } from './wakatime.js';
@@ -80,19 +81,8 @@ const tree = new FileTree($('file-tree'), project, {
     },
     renamed: (from, to) => {
         project.rename(from, to);
-        for (const path of [...unsaved]) {
-            if (path === from || path.startsWith(from + '/')) {
-                unsaved.delete(path);
-                unsaved.add(to + path.slice(from.length));
-            }
-        }
-        for (const [path, state] of [...editorStates]) {
-            if (path === from || path.startsWith(from + '/')) {
-                editorStates.delete(path);
-                editorStates.set(to + path.slice(from.length), state);
-            }
-        }
-        if (openPath === from || openPath.startsWith(from + '/')) {
+        remap(from, to);
+        if (within(openPath, from)) {
             openPath = to + openPath.slice(from.length);
             reopen();
         }
@@ -100,12 +90,7 @@ const tree = new FileTree($('file-tree'), project, {
     },
     deleted: (path) => {
         project.remove(path);
-        for (const key of [...unsaved]) {
-            if (key === path || key.startsWith(path + '/')) unsaved.delete(key);
-        }
-        for (const key of [...editorStates.keys()]) {
-            if (key === path || key.startsWith(path + '/')) editorStates.delete(key);
-        }
+        remap(path, null);
         if (!project.has(openPath)) {
             openPath = firstFile();
             reopen();
@@ -113,6 +98,21 @@ const tree = new FileTree($('file-tree'), project, {
         changed();
     },
 });
+
+const within = (path, folder) => path === folder || path.startsWith(folder + '/');
+
+function remap(from, to) {
+    for (const path of [...unsaved]) {
+        if (!within(path, from)) continue;
+        unsaved.delete(path);
+        if (to) unsaved.add(to + path.slice(from.length));
+    }
+    for (const [path, state] of [...editorStates]) {
+        if (!within(path, from)) continue;
+        editorStates.delete(path);
+        if (to) editorStates.set(to + path.slice(from.length), state);
+    }
+}
 
 function changed() {
     keep();
@@ -163,8 +163,6 @@ function editorState(path, text) {
                     tree.render();
                 }
                 scheduleSave();
-            }
-            if (update.docChanged) {
                 wakatime.edited(openPath, update.state.doc.lines);
             }
             if (update.docChanged || update.selectionSet) {
@@ -196,11 +194,9 @@ function reopen() {
     if (text === null) {
         view?.destroy();
         view = null;
-        editorHost.innerHTML = '';
-        const note = document.createElement('div');
-        note.className = 'binary';
-        note.textContent = `${openPath.slice(1)} is a binary file (${project.read(openPath).length} bytes). It is copied to the board as is.`;
-        editorHost.append(note);
+        editorHost.replaceChildren(
+            el('div', { className: 'binary', textContent: `${openPath.slice(1)} is a binary file (${project.read(openPath).length} bytes). It is copied to the board as is.` }),
+        );
     } else {
         const state = editorStates.get(openPath) ?? editorState(openPath, text);
         if (view) {
@@ -254,9 +250,22 @@ emulator.addEventListener('speed', (event) => {
 });
 emulator.addEventListener('state', (event) => setStatus(event.detail.message));
 
-function setStatus(text) {
+let statusHeld = 0;
+let statusWaiting = null;
+function setStatus(text, { hold = 0 } = {}) {
+    if (!hold && Date.now() < statusHeld) {
+        statusWaiting = text;
+        return;
+    }
     $('status').textContent = text;
     $('status').title = text;
+    if (hold) {
+        statusHeld = Date.now() + hold;
+        statusWaiting = null;
+        setTimeout(() => {
+            if (statusWaiting !== null && Date.now() >= statusHeld) setStatus(statusWaiting);
+        }, hold);
+    }
 }
 
 $('run').onclick = () => flash();
@@ -466,21 +475,12 @@ function trackActivity(isWrite = false) {
 function showWakatime() {
     const button = $('wakatime');
     const name = wakatime.server?.name ?? 'WakaTime';
-    let text;
-    let title;
-    if (!wakatime.settings.apiKey) {
-        text = 'WakaTime';
-        title = 'Track your coding time with WakaTime or Hackatime';
-    } else if (!wakatime.settings.enabled) {
-        text = 'Not tracking';
-        title = `${name}: tracking is off`;
-    } else if (wakatime.error) {
-        text = wakatime.today ?? name;
-        title = `${name}: ${wakatime.error}`;
-    } else {
-        text = wakatime.today ?? name;
-        title = `${name}: your coding time today`;
-    }
+    const { apiKey, enabled } = wakatime.settings;
+    const [text, title] = !apiKey
+        ? ['WakaTime', 'Track your coding time with WakaTime or Hackatime']
+        : !enabled
+          ? ['Not tracking', `${name}: tracking is off`]
+          : [wakatime.today ?? name, `${name}: ${wakatime.error ?? 'your coding time today'}`];
     $('wakatime-text').textContent = text;
     button.title = title;
     button.setAttribute('aria-label', title);
@@ -517,18 +517,9 @@ function chosenServer() {
 function showServerChoice() {
     const server = chosenServer();
     $('wakatime-url-field').hidden = Boolean(server);
-    const help = $('wakatime-key-help');
-    help.textContent = '';
-    if (server) {
-        const link = document.createElement('a');
-        link.href = server.keyPage;
-        link.target = '_blank';
-        link.rel = 'noopener';
-        link.textContent = `Get your ${server.name} API key`;
-        help.append(link);
-    } else {
-        help.textContent = 'The api_key from your .wakatime.cfg.';
-    }
+    $('wakatime-key-help').replaceChildren(
+        server ? el('a', { href: server.keyPage, target: '_blank', rel: 'noopener', textContent: `Get your ${server.name} API key` }) : 'The api_key from your .wakatime.cfg.',
+    );
 }
 
 function openWakatimeSettings() {
@@ -729,13 +720,170 @@ $('project-menu').onclick = () => {
     ]);
 };
 
+let account = null;
+
+function showAccount() {
+    const button = $('account');
+    button.hidden = false;
+    button.classList.toggle('signed-out', !account);
+    $('account-name').textContent = account ? account.name : 'Sign in';
+    $('account-initial').textContent = account ? account.name.slice(0, 1).toUpperCase() : '';
+    button.title = account ? `Signed in as ${account.name}${account.local ? ' (local account)' : ''}` : 'Sign in with Hack Club to keep your projects in the cloud';
+}
+
+async function loadAccount() {
+    try {
+        const response = await fetch('/api/account', { cache: 'no-store' });
+        const body = await response.json();
+        if (!body.available) return;
+        account = body.user;
+        showAccount();
+    } catch {
+    }
+}
+
+const SIGN_IN_OUTCOMES = {
+    ok: null,
+    cancelled: 'Sign-in cancelled.',
+    failed: "Couldn't sign in with Hack Club. Try again.",
+    unavailable: "Signing in isn't available right now.",
+};
+{
+    const params = new URLSearchParams(location.search);
+    const outcome = params.get('signin');
+    if (outcome !== null) {
+        if (SIGN_IN_OUTCOMES[outcome]) setStatus(SIGN_IN_OUTCOMES[outcome], { hold: 5000 });
+        params.delete('signin');
+        history.replaceState(null, '', `${location.pathname}${params.size ? `?${params}` : ''}${location.hash}`);
+    }
+}
+
+function signIn() {
+    location.href = '/api/auth/login';
+}
+
+async function signInLocally() {
+    const email = prompt('Sign in as (any name ending in @local):', 'dev@local');
+    if (!email) return;
+    const response = await fetch('/api/auth/dev', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+    });
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) {
+        setStatus(body.message ?? "Couldn't sign in.", { hold: 5000 });
+        return;
+    }
+    account = body.user;
+    showAccount();
+}
+
+async function signOut(everywhere) {
+    await fetch('/api/auth/logout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ everywhere }),
+    }).catch(() => {});
+    account = null;
+    showAccount();
+    setStatus(everywhere ? 'Signed out on every device.' : 'Signed out.', { hold: 5000 });
+}
+
+const accountMenu = new Menu();
+$('account').onclick = () => {
+    if (account) {
+        accountMenu.open($('account'), [
+            { heading: account.local ? `${account.name} (local account)` : account.name },
+            { label: 'Sign out', run: () => signOut(false) },
+            { label: 'Sign out everywhere', run: () => signOut(true) },
+        ]);
+    } else if (import.meta.env.DEV) {
+        accountMenu.open($('account'), [
+            { label: 'Sign in with Hack Club', run: () => signIn() },
+            { label: 'Sign in as …@local', run: () => signInLocally() },
+        ]);
+    } else {
+        signIn();
+    }
+};
+
+loadAccount();
+
 const settingsMenu = new Menu();
 $('settings').onclick = () => {
     settingsMenu.open($('settings'), [
+        { label: 'Flash physical device…', run: () => openFlash() },
         { label: 'WakaTime…', run: () => openWakatimeSettings() },
         { label: 'Reset panel sizes', run: () => panes.reset() },
     ]);
 };
+
+// Flash
+
+function showFlashManual(manual) {
+    $('flash-manual').hidden = !manual;
+    $('flash-auto').hidden = manual || !('serial' in navigator);
+    $('flash-unsupported').hidden = manual || 'serial' in navigator;
+    $('flash-manual-toggle').textContent = manual ? 'Back' : 'I want to do this manually';
+}
+
+function openFlash() {
+    showFlashManual(false);
+    $('flash-dialog').showModal();
+}
+
+// Uploads the project to the emulated board and returns its drive.
+async function projectDrive() {
+    const applied = new Promise((resolve) => emulator.addEventListener('files-applied', resolve, { once: true }));
+    flash();
+    const { detail } = await applied;
+    if (detail.errors) throw new Error("The project doesn't fit on the board's drive.");
+    return emulator.driveImage();
+}
+
+$('flash-manual-toggle').onclick = () => showFlashManual($('flash-manual').hidden);
+$('flash-close').onclick = () => $('flash-dialog').close();
+
+$('flash-start').onclick = async () => {
+    const status = (text) => ($('flash-status').textContent = text);
+    const bar = $('flash-progress').querySelector('progress');
+    $('flash-start').disabled = true;
+    bar.value = 0;
+    status('');
+    try {
+        const port = await navigator.serial.requestPort();
+        $('flash-progress').hidden = false;
+        const [{ flashDevice }, drive] = await Promise.all([import('./flash.js'), projectDrive()]);
+        await flashDevice(port, drive, { status, progress: (share) => (bar.value = share) });
+        status('Done. The board is running your project.');
+    } catch (error) {
+        // A closed port chooser is a NotFoundError: nothing to report.
+        if (error.name !== 'NotFoundError') status(error.message);
+    } finally {
+        $('flash-start').disabled = false;
+    }
+};
+
+$('flash-download').onclick = async () => {
+    const { flashImage } = await import('./flash.js');
+    const image = await flashImage(await projectDrive());
+    const link = el('a', { href: URL.createObjectURL(new Blob([image])), download: 'cyd-flash.bin' });
+    link.click();
+    URL.revokeObjectURL(link.href);
+};
+
+for (const block of $('flash-dialog').querySelectorAll('pre')) {
+    const copy = el('button', { type: 'button', className: 'copy', textContent: 'Copy' });
+    copy.onclick = async () => {
+        await navigator.clipboard.writeText(block.textContent);
+        copy.textContent = 'Copied';
+        setTimeout(() => (copy.textContent = 'Copy'), 1500);
+    };
+    const wrapper = el('div', { className: 'code' });
+    block.before(wrapper);
+    wrapper.append(block, copy);
+}
 
 $('download').onclick = async () => {
     const zip = new JSZip();
@@ -746,9 +894,7 @@ $('download').onclick = async () => {
         zip.file(path.slice(1), data);
     }
     const blob = await zip.generateAsync({ type: 'blob' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = `${project.name.replace(/[\\/:*?"<>|]+/g, '-')}.zip`;
+    const link = el('a', { href: URL.createObjectURL(blob), download: `${project.name.replace(/[\\/:*?"<>|]+/g, '-')}.zip` });
     link.click();
     URL.revokeObjectURL(link.href);
 };

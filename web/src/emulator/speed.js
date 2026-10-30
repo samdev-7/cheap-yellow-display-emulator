@@ -1,3 +1,5 @@
+// MicroPython 1.25 fibo(30) and bubble sort on an ESP32-S3 (Miguel Grinberg),
+// times 1.15 for the 240 MHz ESP32 (Peter Scruss, 2025).
 export const NS_PER_OPCODE = 411;
 export const NS_PER_CALL = 8700;
 
@@ -18,7 +20,7 @@ export class Speed {
         this.opcodes = 0;
         this.calls = 0;
         this.last = performance.now();
-        this.debt = 0; // ESP32 time not yet matched by real time, in ms.
+        this.debt = 0;
         this.window = { start: this.last, cost: 0, idle: 0, slept: 0 };
         this.slow = null;
     }

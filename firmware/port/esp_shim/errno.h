@@ -2,6 +2,8 @@
 //
 // SPDX-License-Identifier: MIT
 
+// newlib's numbers, as on the ESP32; Emscripten's differ (ENODEV is 43).
+
 #pragma once
 
 int *__errno_location(void);

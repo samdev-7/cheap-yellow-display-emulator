@@ -3,7 +3,8 @@ import { del, get, set } from 'idb-keyval';
 import settingsTemplate from './examples/settings.toml?raw';
 import starterCode from './templates/code.py?raw';
 
-//
+// Saved data carries a version, and loading upgrades older versions step by step.
+// A change to the saved shape needs a FORMAT_VERSION bump and an upgrade step.
 export const FORMAT_VERSION = 1;
 const INDEX_KEY = 'cyd-projects-v1';
 const projectKey = (id) => `cyd-project:${id}`;
@@ -87,8 +88,8 @@ export class Project {
     constructor(id, name) {
         this.id = id;
         this.name = name;
-        this.files = new Map(); // path -> Uint8Array
-        this.emptyFolders = new Set(); // Folders with nothing in them yet, like lib/ on a new board.
+        this.files = new Map();
+        this.emptyFolders = new Set();
         this.board = defaultBoardState();
     }
 
@@ -238,7 +239,7 @@ export class Project {
 
 export class ProjectStore {
     constructor() {
-        this.projects = []; // [{ id, name }], in the order they were made.
+        this.projects = [];
         this.currentId = null;
         this.seeded = false;
     }

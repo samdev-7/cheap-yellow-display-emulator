@@ -26,6 +26,10 @@
         </button>
       </div>
       <div class="status" id="status" role="status">Starting…</div>
+      <button id="account" class="account" aria-haspopup="menu" hidden>
+        <span class="account-initial" id="account-initial" aria-hidden="true"></span>
+        <span id="account-name">Sign in</span>
+      </button>
       <button id="settings" class="settings" aria-haspopup="menu" aria-label="Settings" title="Settings">
         <!-- "settings" from Lucide (lucide-static 1.61.0), ISC License, Copyright (c) 2026 Lucide Icons and Contributors -->
         <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -150,6 +154,41 @@
           <button type="submit" id="wakatime-save" class="primary">Save</button>
         </div>
       </form>
+    </dialog>
+
+    <dialog id="flash-dialog" class="dialog flash" aria-labelledby="flash-dialog-title">
+      <h2 id="flash-dialog-title">Flash physical device</h2>
+      <div id="flash-auto" hidden>
+        <ol class="steps">
+          <li>Plug the CYD into this computer with a USB data cable.</li>
+          <li>
+            Flash it with CircuitPython 10.3.1 and this project.
+            <div class="flash-run"><button type="button" id="flash-start" class="primary">Flash</button></div>
+          </li>
+        </ol>
+        <div class="flash-progress" id="flash-progress" hidden>
+          <progress max="1" value="0"></progress>
+          <span id="flash-status" role="status"></span>
+        </div>
+      </div>
+      <p id="flash-unsupported" class="flash-unsupported" hidden>This browser can't connect to the board. Use Chrome, Edge or Opera on a computer.</p>
+      <div id="flash-manual" hidden>
+        <ol class="steps">
+          <li>
+            Download CircuitPython 10.3.1 and this project as one flash image.
+            <div class="flash-run"><button type="button" id="flash-download">Download flash image</button></div>
+          </li>
+          <li>
+            Plug in the CYD and flash it (hold BOOT if it can't connect):
+            <pre><code>python3 -m pip install esptool
+python3 -m esptool write-flash 0x0 ~/Downloads/cyd-flash.bin</code></pre>
+          </li>
+        </ol>
+      </div>
+      <div class="dialog-actions">
+        <button type="button" id="flash-manual-toggle">I want to do this manually</button>
+        <button type="button" id="flash-close" class="primary">Done</button>
+      </div>
     </dialog>
 
     <script type="module" src="/src/main.js"></script>

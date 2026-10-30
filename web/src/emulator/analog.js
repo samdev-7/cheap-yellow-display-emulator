@@ -1,3 +1,4 @@
+// R15 (1M) from 3.3V to GPIO34; R19 (1M) in parallel with the LDR R21 (GT36516) to ground.
 const SUPPLY_MV = 3300;
 const R15 = 1e6;
 const R19 = 1e6;
@@ -20,9 +21,10 @@ function millivoltsAt(lux) {
     return (SUPPLY_MV * lower) / (R15 + lower);
 }
 
+// ESP-IDF esp_adc/esp32/adc_cali_line_fitting.c at 12dB with a 1100mV Vref, as ports/espressif computes it.
 const VREF = 1100;
-const COEFF_A = Math.floor((VREF * 196602) / 4096); // adc1_vref_atten_scale[3]
-const COEFF_B = 142; // adc1_vref_atten_offset[3]
+const COEFF_A = Math.floor((VREF * 196602) / 4096);
+const COEFF_B = 142;
 const LUT_LOW_THRESH = 2880;
 const LUT_STEP = 64;
 const LUT_LOW = [2240, 2297, 2352, 2405, 2457, 2512, 2564, 2616, 2664, 2709, 2754, 2795, 2832, 2868, 2903, 2937, 2969, 3000, 3030, 3060];

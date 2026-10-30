@@ -1,4 +1,4 @@
-import { CTRL, RESET_REASON, SERIAL_SIZE, createShared, packCard, packOps, views } from './shared.js';
+import { CTRL, RESET_REASON, SERIAL_SIZE, createShared, packCard, views } from './shared.js';
 import { lightSensorMillivolts } from './analog.js';
 
 const MIN_TOUCH_MS = 150;
@@ -12,9 +12,7 @@ export class Emulator extends EventTarget {
         this.sab = createShared();
         this.shared = views(this.sab);
         this.worker = null;
-        this.queuedOps = [];
-        this.mailboxBusy = false;
-        this.sleeping = null; // { pins, values, timer } in deep sleep
+        this.sleeping = null;
         Atomics.store(this.shared.ctrl, CTRL.LIGHT_MV, Math.round(lightSensorMillivolts(70)));
     }
 
@@ -37,18 +35,17 @@ export class Emulator extends EventTarget {
         if (reason === RESET_REASON.POWER_ON) {
             this.shared.sleepMemory.fill(0);
         }
-        for (const slot of [CTRL.SERIAL_HEAD, CTRL.SERIAL_TAIL, CTRL.CTRL_C, CTRL.MAILBOX_STATE]) {
+        for (const slot of [CTRL.SERIAL_HEAD, CTRL.SERIAL_TAIL, CTRL.CTRL_C]) {
             Atomics.store(ctrl, slot, 0);
         }
-        this.queuedOps = [];
-        this.mailboxBusy = false;
         this.network?.reset();
         this.worker = new Worker(new URL('./worker.js', import.meta.url), { type: 'module' });
         this.worker.onmessage = (event) => this.onWorkerMessage(event.data);
         this.worker.onerror = (event) => {
             this.emit('state', { running: false, message: `Emulator failed to start: ${event.message}` });
         };
-        this.worker.postMessage({ type: 'start', sab: this.sab, firmwareUrl: this.firmwareUrl, files, card, costScale: 1 / this.esp32Speed });
+        const generation = Atomics.load(ctrl, CTRL.GENERATION);
+        this.worker.postMessage({ type: 'start', sab: this.sab, firmwareUrl: this.firmwareUrl, files, card, costScale: 1 / this.esp32Speed, generation });
         this.emit('state', { running: true, message: 'Starting…' });
     }
 
@@ -57,6 +54,8 @@ export class Emulator extends EventTarget {
             this.worker.terminate();
             this.worker = null;
         }
+        Atomics.add(this.ctrl, CTRL.GENERATION, 1);
+        this.wake();
         this.emit('speed', { ratio: null });
     }
 
@@ -128,6 +127,16 @@ export class Emulator extends EventTarget {
         }
     }
 
+    // The CIRCUITPY drive as a real board stores it, byte for byte.
+    driveImage() {
+        return new Promise((resolve, reject) => {
+            const timer = setTimeout(() => reject(new Error("The emulated board didn't answer.")), 5000);
+            this.addEventListener('drive-image', (event) => (clearTimeout(timer), resolve(event.detail)), { once: true });
+            Atomics.store(this.ctrl, CTRL.DRIVE_REQUEST, 1);
+            this.wake();
+        });
+    }
+
     nvmSnapshot() {
         const nvm = this.shared.nvm;
         return nvm.some((byte) => byte !== 0) ? nvm.slice() : null;
@@ -153,11 +162,7 @@ export class Emulator extends EventTarget {
                 this.emit('state', { running: true, message: 'Running' });
                 break;
             case 'files-applied':
-                if (message.saved) {
-                    this.mailboxBusy = false;
-                }
-                this.emit('files-applied', { errors: message.errors, saved: message.saved });
-                this.flushOps();
+                this.emit('files-applied', { errors: message.errors });
                 break;
             case 'sd-blocks':
                 if (message.generation === Atomics.load(this.ctrl, CTRL.SD_GENERATION)) {
@@ -166,6 +171,9 @@ export class Emulator extends EventTarget {
                 break;
             case 'nvm':
                 this.emit('nvm');
+                break;
+            case 'drive-image':
+                this.emit('drive-image', message.bytes);
                 break;
             case 'restart':
                 this.emit('reset-requested', { reason: message.reason });
@@ -188,32 +196,13 @@ export class Emulator extends EventTarget {
         }
     }
 
-    applyFiles(ops) {
-        const kinds = { write: 1, mkdir: 2, delete: 3 };
-        for (const op of ops) {
-            this.queuedOps.push({ kind: kinds[op.kind], path: op.path, data: op.data ?? null });
-        }
-        this.flushOps();
-    }
-
-    flushOps() {
-        if (this.mailboxBusy || this.queuedOps.length === 0 || !this.worker) {
-            return;
-        }
-        packOps(this.queuedOps, this.shared.mailbox);
-        this.queuedOps = [];
-        this.mailboxBusy = true;
-        Atomics.store(this.ctrl, CTRL.MAILBOX_STATE, 1);
-        this.wake();
-    }
-
     sendSerial(bytes) {
         const ctrl = this.ctrl;
         let head = Atomics.load(ctrl, CTRL.SERIAL_HEAD);
         for (const b of bytes) {
             const next = (head + 1) % SERIAL_SIZE;
             if (next === Atomics.load(ctrl, CTRL.SERIAL_TAIL)) {
-                break; // Input buffer full; drop the rest, as a UART FIFO would.
+                break;
             }
             this.shared.serial[head] = b;
             head = next;
@@ -225,10 +214,7 @@ export class Emulator extends EventTarget {
         this.wake();
     }
 
-    interrupt() {
-        this.sendSerial(new Uint8Array([0x03]));
-    }
-
+    // A finger stays on a resistive screen for 100 ms or more.
     setTouch(pressed, x = 0, y = 0) {
         const ctrl = this.ctrl;
         Atomics.store(ctrl, CTRL.TOUCH_X, Math.round(x));

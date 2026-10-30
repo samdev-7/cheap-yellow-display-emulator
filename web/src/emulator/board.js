@@ -27,12 +27,10 @@ const PIN = {
 };
 
 const MODE_DISABLED = 0;
-const MODE_INPUT = 1;
 const MODE_OUTPUT = 2;
 const MODE_OPEN_DRAIN = 3;
 
 const PULL_UP = 1;
-const PULL_DOWN = 2;
 
 export class CYDBoard {
     constructor({ ctrl, framebuffer }, card) {
@@ -40,7 +38,7 @@ export class CYDBoard {
         this.mode = new Uint8Array(40);
         this.pull = new Uint8Array(40);
         this.level = new Uint8Array(40);
-        this.pwmDuty = new Int32Array(40).fill(-1); // -1 when the pin isn't running PWM.
+        this.pwmDuty = new Int32Array(40).fill(-1);
         this.dac = new Int32Array(40).fill(-1);
 
         this.display = new ILI9341(framebuffer, () => {

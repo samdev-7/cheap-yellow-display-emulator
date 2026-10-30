@@ -12,8 +12,8 @@ typedef struct {
     uint8_t timer_num;
     uint8_t channel;
     uint8_t duty_resolution;
-    uint32_t duty;           // In timer counts, as ledc_get_duty() reports it.
-    uint32_t clock_divider;  // 10.8 fixed point, as the LEDC timer stores it.
+    uint32_t duty;
+    uint32_t clock_divider;
     bool variable_frequency : 1;
     bool deinited : 1;
 } pwmio_pwmout_obj_t;

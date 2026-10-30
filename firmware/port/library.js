@@ -12,7 +12,7 @@ addToLibrary({
     wasm_serial_write: (ptr, len) => Module.hal.serialWrite(HEAPU8.slice(ptr, ptr + len)),
     wasm_serial_available: () => Module.hal.serialAvailable(),
     wasm_serial_read: () => Module.hal.serialRead(),
-    wasm_serial_check_interrupt: () => (Module.hal.serialCheckInterrupt() ? 1 : 0),
+    wasm_serial_check_interrupt: (enabled) => (Module.hal.serialCheckInterrupt(enabled) ? 1 : 0),
 
     wasm_gpio_config: (pin, mode, pull) => Module.hal.gpioConfig(pin, mode, pull),
     wasm_gpio_set: (pin, value) => Module.hal.gpioSet(pin, value !== 0),
@@ -54,14 +54,17 @@ addToLibrary({
             return 0;
         }
         stringToUTF8(op.path, pathPtr, pathCap);
-        HEAPU32[lenPtr >> 2] = op.data ? op.data.length : 0;
+        HEAPU32[lenPtr >> 2] = op.data.length;
         Module.hal.fsCurrent = op;
-        return op.kind;
+        return 1;
     },
     wasm_fs_op_data: (dest) => {
         HEAPU8.set(Module.hal.fsCurrent.data, dest);
     },
     wasm_fs_ops_done: (errors) => Module.hal.fsOpsDone(errors),
+    wasm_flash_init: (ptr, len) => {
+        Module.hal.driveImage = () => HEAPU8.slice(ptr, ptr + len);
+    },
 
     wasm_wifi_set_home__deps: ['$UTF8ToString'],
     wasm_wifi_set_home: (ptr, len) => Module.hal.net.setHome(UTF8ToString(ptr, len)),
@@ -139,7 +142,4 @@ addToLibrary({
     },
     wasm_alarm_deep_sleep: (timeMs, pinsPtr, valuesPtr, count) =>
         Module.hal.deepSleep(timeMs, [...HEAPU8.subarray(pinsPtr, pinsPtr + count)], [...HEAPU8.subarray(valuesPtr, valuesPtr + count)]),
-
-    wasm_flash_load: (ptr, len) => Module.hal.flashLoad(HEAPU8.subarray(ptr, ptr + len)),
-    wasm_flash_dirty: (offset, len) => Module.hal.flashDirty(offset, len),
 });

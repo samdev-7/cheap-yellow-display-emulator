@@ -1,6 +1,6 @@
-const ANSWER = { STATE: 0, VALUE: 1, ERROR: 2 };
-const DNS_NOT_FOUND = 1000;
-const ERRNO = { ECONNRESET: 104, ECONNREFUSED: 111, ETIMEDOUT: 116, EHOSTUNREACH: 118 };
+// Each HTTP request goes through the proxy exactly once.
+
+import { ANSWER, DNS_NOT_FOUND, ERRNO, concat, parseIPv4 } from '../emulator/network.js';
 
 const DOH = 'https://cloudflare-dns.com/dns-query';
 const TIMEOUT_MS = 10_000;
@@ -18,8 +18,8 @@ export class NetworkBridge {
         this.wake = wake;
         this.notice = notice;
         this.fetch = fetchImpl;
-        this.waiting = new Map(); // request id -> { answer, bytes }, until the worker takes the bytes.
-        this.recent = {}; // 'http' | 'dns' -> times of recent requests.
+        this.waiting = new Map();
+        this.recent = {};
     }
 
     handle(message) {
@@ -83,9 +83,9 @@ export class NetworkBridge {
                 signal: AbortSignal.timeout(TIMEOUT_MS),
             });
             const reply = await response.json();
-            if (reply.Status === 3) return null; // NXDOMAIN
+            if (reply.Status === 3) return null;
             const record = (reply.Answer ?? []).find((entry) => entry.type === 1);
-            if (record) return ipv4(record.data);
+            if (record) return parseIPv4(record.data);
             if (reply.Status === 0) return null;
         } catch {
         }
@@ -184,11 +184,7 @@ function toHttp({ status, statusText, headers, body }, method, keepAlive) {
     }
     lines.push(`Content-Length: ${method === 'HEAD' && length !== null ? length : body.length}`);
     if (!keepAlive) lines.push('Connection: close');
-    const head = new TextEncoder().encode(`${lines.join('\r\n')}\r\n\r\n`);
-    const bytes = new Uint8Array(head.length + body.length);
-    bytes.set(head);
-    bytes.set(body, head.length);
-    return bytes;
+    return concat(new TextEncoder().encode(`${lines.join('\r\n')}\r\n\r\n`), body);
 }
 
 async function readCapped(response) {
@@ -206,13 +202,7 @@ async function readCapped(response) {
         }
         chunks.push(value);
     }
-    const bytes = new Uint8Array(size);
-    let offset = 0;
-    for (const chunk of chunks) {
-        bytes.set(chunk, offset);
-        offset += chunk.length;
-    }
-    return bytes;
+    return new Uint8Array(await new Blob(chunks).arrayBuffer());
 }
 
 function questionType(bytes) {
@@ -220,7 +210,7 @@ function questionType(bytes) {
     while (offset < bytes.length) {
         const length = bytes[offset];
         if (length === 0) break;
-        if (length > 63) return null; // No compression pointers in a question.
+        if (length > 63) return null;
         offset += length + 1;
     }
     if (offset + 5 > bytes.length) return null;
@@ -253,16 +243,10 @@ function proxyFailure(error, host) {
 
 function isPrivateHost(host) {
     if (host === 'localhost' || host.endsWith('.localhost') || host.endsWith('.local') || host.endsWith('.internal')) return true;
-    const ip = ipv4(host);
-    if (ip === null) return host.includes(':'); // IPv6 literals aren't supported.
+    const ip = parseIPv4(host);
+    if (ip === null) return host.includes(':');
     const [a, b] = [ip >>> 24, (ip >>> 16) & 255];
     return a === 0 || a === 10 || a === 127 || (a === 169 && b === 254) || (a === 172 && b >= 16 && b < 32) || (a === 192 && b === 168) || (a === 100 && b >= 64 && b < 128) || a >= 224;
-}
-
-function ipv4(text) {
-    const parts = String(text).split('.');
-    if (parts.length !== 4 || !parts.every((part) => /^\d{1,3}$/.test(part) && Number(part) < 256)) return null;
-    return parts.reduce((ip, part) => ((ip << 8) | Number(part)) >>> 0, 0);
 }
 
 function madeUpAddress(host) {

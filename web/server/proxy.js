@@ -1,3 +1,5 @@
+// The proxy never connects to private, loopback or reserved addresses and never follows redirects.
+
 import http from 'node:http';
 import https from 'node:https';
 import dns from 'node:dns';
@@ -24,6 +26,7 @@ for (const [address, prefix] of [
     blocked.addSubnet(address, prefix, 'ipv4');
 }
 for (const [address, prefix] of [
+    // BlockList checks IPv4-mapped addresses against the IPv4 list.
     ['::', 128], ['::1', 128], ['64:ff9b::', 96], ['64:ff9b:1::', 48], ['100::', 64],
     ['2001::', 23], ['2001:db8::', 32], ['2002::', 16], ['fc00::', 7], ['fe80::', 10], ['fec0::', 10], ['ff00::', 8],
 ]) {

@@ -44,7 +44,7 @@ safe_mode_t port_init(void) {
 }
 
 void reset_port(void) {
-    wasm_fs_apply_pending(false);
+    wasm_fs_apply_pending();
 
     #if CIRCUITPY_RTC
     rtc_reset();
@@ -119,7 +119,7 @@ void port_interrupt_after_ticks(uint32_t ticks) {
 }
 
 static void _poll_interrupts(void) {
-    if (mp_interrupt_char == CHAR_CTRL_C && wasm_serial_check_interrupt()) {
+    if (wasm_serial_check_interrupt(mp_interrupt_char == CHAR_CTRL_C)) {
         mp_sched_keyboard_interrupt();
     }
     if (_tick_enabled) {
@@ -152,6 +152,7 @@ void port_idle_until_interrupt(void) {
     _poll_interrupts();
 }
 
+// Each poll crosses into JS; polls happen about every 0.4 ms of ESP32 time.
 #define POLL_EVERY_OPCODES 1000
 #define POLL_EVERY_CALLS 64
 
@@ -164,7 +165,6 @@ void port_background_task(void) {
     opcodes_at_poll = wasm_vm_opcodes;
     skipped = 0;
     _poll_interrupts();
-    wasm_fs_apply_pending(false);
 }
 
 void port_background_tick(void) {

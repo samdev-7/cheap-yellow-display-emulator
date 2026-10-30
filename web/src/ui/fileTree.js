@@ -1,3 +1,4 @@
+import { el } from './el.js';
 import { Menu } from './menu.js';
 
 const COLLAPSED_KEY = 'cyd-tree-collapsed';
@@ -53,7 +54,7 @@ export class FileTree {
         this.project = project;
         this.cb = callbacks;
         this.collapsed = new Set(loadCollapsed());
-        this.editing = null; // { mode: 'rename' | 'file' | 'folder', path }
+        this.editing = null;
         this.selected = '';
         this.dragging = null;
         this.menu = new Menu();
@@ -67,6 +68,7 @@ export class FileTree {
             }
         });
         this.dropZone(host, () => '');
+        // A row rebuilt mid-drag may never get its dragend.
         const endDrag = () => {
             this.dragging = null;
             this.highlight(null);
@@ -168,10 +170,7 @@ export class FileTree {
             this.host.append(this.renderNode({ path, name: baseName(path), children: null }, 0));
         }
         if (pinned.length > 0) {
-            const divider = document.createElement('li');
-            divider.className = 'tree-divider';
-            divider.setAttribute('role', 'separator');
-            this.host.append(divider);
+            this.host.append(el('li', { className: 'tree-divider', role: 'separator' }));
         }
         if (this.editing && this.editing.mode !== 'rename' && this.editing.path === '') {
             this.host.append(this.editingRow(this.editing, 0));
@@ -186,13 +185,9 @@ export class FileTree {
     }
 
     renderNode(node, depth) {
-        const item = document.createElement('li');
-        item.setAttribute('role', 'treeitem');
         const isFolder = node.children !== null;
         const open = isFolder && !this.collapsed.has(node.path);
-        if (isFolder) {
-            item.setAttribute('aria-expanded', String(open));
-        }
+        const item = el('li', { role: 'treeitem', ...(isFolder ? { 'aria-expanded': String(open) } : {}) });
 
         if (this.editing?.mode === 'rename' && this.editing.path === node.path) {
             item.append(this.editingRow(this.editing, depth, isFolder));
@@ -201,8 +196,7 @@ export class FileTree {
         }
 
         if (isFolder && open) {
-            const group = document.createElement('ul');
-            group.setAttribute('role', 'group');
+            const group = el('ul', { role: 'group' });
             if (this.editing && this.editing.mode !== 'rename' && this.editing.path === node.path) {
                 group.append(this.editingRow(this.editing, depth + 1));
             }
@@ -213,15 +207,9 @@ export class FileTree {
     }
 
     row(node, depth, isFolder, open) {
-        const row = document.createElement('div');
-        row.className = 'tree-row';
-        row.dataset.path = node.path;
+        const row = el('div', { className: 'tree-row', 'data-path': node.path, tabIndex: 0, draggable: true, title: node.path.slice(1) });
         row.style.setProperty('--depth', depth);
-        row.tabIndex = 0;
-        if (node.path === this.selected) {
-            row.classList.add('selected');
-        }
-        row.draggable = true;
+        row.classList.toggle('selected', node.path === this.selected);
         row.addEventListener('dragstart', (event) => {
             this.dragging = node.path;
             event.dataTransfer.setData(DRAG_TYPE, node.path);
@@ -235,42 +223,22 @@ export class FileTree {
             this.highlight(null);
         });
         this.dropZone(row, () => (isFolder ? node.path : parentOf(node.path)));
-        const current = !isFolder && node.path === this.cb.openPath();
-        if (current) {
+        if (!isFolder && node.path === this.cb.openPath()) {
             row.classList.add('current');
             row.setAttribute('aria-current', 'true');
         }
-        row.title = node.path.slice(1);
-
-        const chevron = document.createElement('span');
-        chevron.className = 'tree-chevron' + (open ? ' open' : '');
-        chevron.innerHTML = isFolder ? ICONS.chevron : '';
-        const icon = document.createElement('span');
-        icon.className = 'tree-icon';
-        icon.innerHTML = isFolder ? (open ? ICONS.folderOpen : ICONS.folder) : fileIcon(node.name);
-        const name = document.createElement('span');
-        name.className = 'tree-name';
-        name.textContent = node.name;
-        row.append(chevron, icon, name);
-
-        if (!isFolder && this.cb.isUnsaved(node.path)) {
-            const dot = document.createElement('span');
-            dot.className = 'tree-unsaved';
-            dot.title = 'Not saved to the board yet';
-            row.append(dot);
-        }
-
-        const more = document.createElement('button');
-        more.className = 'tree-more';
-        more.innerHTML = ICONS.more;
-        more.title = 'More actions';
-        more.setAttribute('aria-label', `Actions for ${node.name}`);
-        more.setAttribute('aria-haspopup', 'menu');
+        const more = el('button', { className: 'tree-more', innerHTML: ICONS.more, title: 'More actions', 'aria-label': `Actions for ${node.name}`, 'aria-haspopup': 'menu' });
+        row.append(
+            el('span', { className: 'tree-chevron' + (open ? ' open' : ''), innerHTML: isFolder ? ICONS.chevron : '' }),
+            el('span', { className: 'tree-icon', innerHTML: isFolder ? (open ? ICONS.folderOpen : ICONS.folder) : fileIcon(node.name) }),
+            el('span', { className: 'tree-name', textContent: node.name }),
+            ...(!isFolder && this.cb.isUnsaved(node.path) ? [el('span', { className: 'tree-unsaved', title: 'Not saved to the board yet' })] : []),
+            more,
+        );
         more.addEventListener('click', (event) => {
             event.stopPropagation();
             this.openMenu(more, node.path, isFolder);
         });
-        row.append(more);
 
         const activate = () => {
             this.select(node.path);
@@ -308,26 +276,21 @@ export class FileTree {
     }
 
     editingRow(editing, depth, isFolder = editing.mode === 'folder') {
-        const row = document.createElement('div');
-        row.className = 'tree-row editing';
-        row.style.setProperty('--depth', depth);
-        const chevron = document.createElement('span');
-        chevron.className = 'tree-chevron';
-        const icon = document.createElement('span');
-        icon.className = 'tree-icon';
-        const input = document.createElement('input');
-        input.className = 'tree-input';
-        input.spellcheck = false;
-        input.setAttribute('aria-label', editing.mode === 'rename' ? 'New name' : `Name of the new ${editing.mode}`);
         const initial = editing.mode === 'rename' ? baseName(editing.path) : '';
-        input.value = initial;
-        icon.innerHTML = isFolder ? ICONS.folder : fileIcon(initial || 'x.py');
+        const icon = el('span', { className: 'tree-icon', innerHTML: isFolder ? ICONS.folder : fileIcon(initial || 'x.py') });
+        const input = el('input', {
+            className: 'tree-input',
+            spellcheck: false,
+            value: initial,
+            'aria-label': editing.mode === 'rename' ? 'New name' : `Name of the new ${editing.mode}`,
+        });
+        const row = el('div', { className: 'tree-row editing' }, el('span', { className: 'tree-chevron' }), icon, input);
+        row.style.setProperty('--depth', depth);
         input.addEventListener('input', () => {
             if (!isFolder) icon.innerHTML = fileIcon(input.value || 'x.py');
             input.setCustomValidity('');
             input.title = '';
         });
-        row.append(chevron, icon, input);
 
         let done = false;
         const finish = (commit) => {

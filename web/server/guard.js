@@ -45,12 +45,25 @@ export function refuse(request, settings) {
     return null;
 }
 
-function sameOrigin(request) {
+// Browsers set Sec-Fetch-Site and Origin; pages can't change them.
+export function sameOrigin(request) {
     const site = request.headers.get('sec-fetch-site');
     if (site) return site === 'same-origin';
     const origin = request.headers.get('origin');
     if (!origin) return false;
     return new URL(origin).host === new URL(request.url).host;
+}
+
+export function readCookie(request, name) {
+    for (const part of (request.headers.get('cookie') || '').split(';')) {
+        const [key, ...value] = part.trim().split('=');
+        if (key === name) return value.join('=');
+    }
+    return null;
+}
+
+export function cookie(name, value, { path, maxAge, dev, sameSite = 'Lax' }) {
+    return `${name}=${value}; Path=${path}; Max-Age=${maxAge}; HttpOnly; SameSite=${sameSite}${dev ? '' : '; Secure'}`;
 }
 
 export function clientAddress(request) {

@@ -4,6 +4,4 @@
 
 #pragma once
 
-#include <stdbool.h>
-
-void wasm_fs_apply_pending(bool trigger_reload);
+void wasm_fs_apply_pending(void);

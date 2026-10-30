@@ -12,7 +12,7 @@ typedef struct {
     uint8_t bssid[6];
     int8_t rssi;
     uint8_t channel;
-    bool open; // Otherwise WPA2 with a password.
+    bool open;
 } wifi_network_obj_t;
 
 mp_obj_t wifi_network_new(const char *ssid, const int32_t *info);

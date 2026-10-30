@@ -1,12 +1,12 @@
-const TEST_SITE_KEY = '1x00000000000000000000AA'; // Cloudflare's always-pass test key.
-const env = import.meta.env ?? {}; // Undefined outside Vite, as in tests.
+const TEST_SITE_KEY = '1x00000000000000000000AA';
+const env = import.meta.env ?? {};
 const SITE_KEY = env.VITE_TURNSTILE_SITE_KEY || (env.DEV ? TEST_SITE_KEY : '');
 const TURNSTILE_SCRIPT = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
 const TIMING = {
-    refreshMarginMs: 30_000, // Get a new token this long before the current one ends.
-    sessionMarginMs: 2 * 60_000, // Renew the session this long before it ends.
-    keepWarmMs: 5 * 60_000, // Keep refreshing for this long after the proxy was last used.
-    retryMs: 15_000, // After a background refresh fails, try again this soon.
+    refreshMarginMs: 30_000,
+    sessionMarginMs: 2 * 60_000,
+    keepWarmMs: 5 * 60_000,
+    retryMs: 15_000,
 };
 
 export class ProxyError extends Error {
@@ -22,9 +22,9 @@ export class NetworkProxy {
         this.fetch = fetchImpl ?? ((...args) => globalThis.fetch(...args));
         this.turnstile = turnstile;
         this.timing = { ...TIMING, ...timing };
-        this.access = null; // { token, expiresAt } on this page's clock.
-        this.sessionExpiresAt = 0; // On this page's clock; 0 when unknown.
-        this.pending = null; // The refresh under way, shared by everyone waiting.
+        this.access = null;
+        this.sessionExpiresAt = 0;
+        this.pending = null;
         this.refreshTimer = 0;
         this.lastUsed = 0;
     }

@@ -8,5 +8,5 @@
 
 typedef struct {
     mp_obj_base_t base;
-    mp_float_t monotonic_time; // compatible with time.monotonic()
+    mp_float_t monotonic_time;
 } alarm_time_timealarm_obj_t;

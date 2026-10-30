@@ -32,6 +32,7 @@ void common_hal_analogio_analogin_deinit(analogio_analogin_obj_t *self) {
     self->pin = NULL;
 }
 
+// With 12dB attenuation the ESP32 tops out near 3.1V; readings never reach 65535.
 uint16_t common_hal_analogio_analogin_get_value(analogio_analogin_obj_t *self) {
     int voltage = wasm_adc_read(self->pin->number);
     return voltage * ((1 << 16) - 1) / 3300;

@@ -18,6 +18,11 @@ function api(mode) {
         '/api/session': async (request) => (await import('./server/session.js')).handleSession(request, env),
         '/api/token': async (request) => (await import('./server/session.js')).handleToken(request, env),
         '/api/proxy': async (request) => (await import('./server/proxy.js')).handleProxy(request, env),
+        '/api/account': async (request) => (await import('./server/auth.js')).handleAccount(request, env),
+        '/api/auth/login': async (request) => (await import('./server/auth.js')).handleLogin(request, env),
+        '/api/auth/callback': async (request) => (await import('./server/auth.js')).handleCallback(request, env),
+        '/api/auth/logout': async (request) => (await import('./server/auth.js')).handleLogout(request, env),
+        '/api/auth/dev': async (request) => (await import('./server/auth.js')).handleDevLogin(request, env),
     };
     const serve = (server) => {
         server.middlewares.use(async (req, res, next) => {
@@ -30,9 +35,13 @@ function api(mode) {
                 headers.set(name, Array.isArray(value) ? value.join(', ') : value);
             }
             const body = ['GET', 'HEAD'].includes(req.method) ? undefined : Buffer.concat(chunks);
-            const response = await handle(new Request(`http://${req.headers.host}${req.url}`, { method: req.method, headers, body }));
+            const response = await handle(new Request(`http://${req.headers.host}${req.url}`, { method: req.method, headers, body })).catch(
+                (error) => new Response(String(error), { status: 500 }),
+            );
             res.statusCode = response.status;
-            response.headers.forEach((value, name) => res.setHeader(name, value));
+            response.headers.forEach((value, name) => name !== 'set-cookie' && res.setHeader(name, value));
+            const cookies = response.headers.getSetCookie();
+            if (cookies.length) res.setHeader('Set-Cookie', cookies);
             res.end(Buffer.from(await response.arrayBuffer()));
         });
     };

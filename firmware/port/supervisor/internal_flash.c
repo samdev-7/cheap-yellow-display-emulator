@@ -20,7 +20,7 @@ void supervisor_flash_init(void) {
         return;
     }
     memset(_flash, 0xff, sizeof(_flash));
-    wasm_flash_load(_flash, sizeof(_flash));
+    wasm_flash_init(_flash, sizeof(_flash));
     _flash_loaded = true;
 }
 
@@ -52,7 +52,6 @@ mp_uint_t supervisor_flash_write_blocks(const uint8_t *src, uint32_t block, uint
         return 1;
     }
     memcpy(_flash + offset, src, len);
-    wasm_flash_dirty(offset, len);
     return 0;
 }
 
