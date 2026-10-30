@@ -10,7 +10,9 @@ CIRCUITPY_DISPLAY_ROTATION = 0
 #     greeting = os.getenv("GREETING")
 GREETING = "Hello, CYD!"
 
-# Wi-Fi: the board joins this network when it starts. The emulator joins any
-# network name; what it finds can be changed in the board's ⋯ menu.
-CIRCUITPY_WIFI_SSID = "your_network"
-CIRCUITPY_WIFI_PASSWORD = "your_password"
+# Wi-Fi: remove the # from both lines to join this network when the board
+# starts. A real board waits about 20 seconds for a network it can't find
+# before it runs code.py. The emulator joins any network name; what it finds
+# can be changed in the board's ⋯ menu.
+# CIRCUITPY_WIFI_SSID = "your_network"
+# CIRCUITPY_WIFI_PASSWORD = "your_password"

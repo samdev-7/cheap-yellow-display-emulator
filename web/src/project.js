@@ -33,6 +33,7 @@ function upgrade(saved) {
 
 export const DEFAULT_NAME = 'Untitled project';
 const DEFAULT_EXAMPLE = 'hello';
+const WIFI_EXAMPLES = new Set(['wifi', 'weather']);
 
 const exampleSources = import.meta.glob('./examples/*/**/*', { query: '?raw', import: 'default', eager: true });
 const librarySources = import.meta.glob('./library/**/*.py', { query: '?raw', import: 'default', eager: true });
@@ -94,7 +95,11 @@ export class Project {
     }
 
     static fromExample(id, name, exampleId) {
-        return Project.withFiles(id, name, exampleFiles(exampleId));
+        const project = Project.withFiles(id, name, exampleFiles(exampleId));
+        if (WIFI_EXAMPLES.has(exampleId)) {
+            project.files.set('/settings.toml', encoder.encode(settingsTemplate.replaceAll('# CIRCUITPY_WIFI_', 'CIRCUITPY_WIFI_')));
+        }
+        return project;
     }
 
     static starter(id, name) {
