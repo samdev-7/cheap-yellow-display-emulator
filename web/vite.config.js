@@ -35,7 +35,9 @@ function api(mode) {
                 headers.set(name, Array.isArray(value) ? value.join(', ') : value);
             }
             const body = ['GET', 'HEAD'].includes(req.method) ? undefined : Buffer.concat(chunks);
-            const response = await handle(new Request(`http://${req.headers.host}${req.url}`, { method: req.method, headers, body }));
+            const response = await handle(new Request(`http://${req.headers.host}${req.url}`, { method: req.method, headers, body })).catch(
+                (error) => new Response(String(error), { status: 500 }),
+            );
             res.statusCode = response.status;
             response.headers.forEach((value, name) => name !== 'set-cookie' && res.setHeader(name, value));
             const cookies = response.headers.getSetCookie();

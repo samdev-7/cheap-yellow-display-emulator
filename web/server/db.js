@@ -17,7 +17,11 @@ export async function database(env) {
         pools.set(url, entry);
         entry.ready.catch(() => pools.delete(url));
     }
-    await entry.ready;
+    try {
+        await entry.ready;
+    } catch {
+        return null;
+    }
     return entry.pool;
 }
 
