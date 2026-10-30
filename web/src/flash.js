@@ -44,10 +44,12 @@ export async function flashDevice(port, drive, { status, progress }) {
         });
         // RST: RTS pulls EN low; DTR low keeps GPIO0 high for a normal boot.
         // esptool-js's hard_reset only releases RTS.
+        // Closing the port can glitch DTR; the board samples GPIO0 at boot, so it waits.
         await transport.setDTR(false);
         await transport.setRTS(true);
         await new Promise((resolve) => setTimeout(resolve, 100));
         await transport.setRTS(false);
+        await new Promise((resolve) => setTimeout(resolve, 1000));
     } finally {
         await transport.disconnect();
     }

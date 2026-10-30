@@ -856,7 +856,7 @@ $('flash-start').onclick = async () => {
         $('flash-progress').hidden = false;
         const [{ flashDevice }, drive] = await Promise.all([import('./flash.js'), projectDrive()]);
         await flashDevice(port, drive, { status, progress: (share) => (bar.value = share) });
-        status('Done. The board is running your project.');
+        status('Done. If the screen stays dark, press RST.');
     } catch (error) {
         // A closed port chooser is a NotFoundError: nothing to report.
         if (error.name !== 'NotFoundError') status(error.message);
