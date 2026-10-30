@@ -44,7 +44,8 @@ export class Emulator extends EventTarget {
         this.worker.onerror = (event) => {
             this.emit('state', { running: false, message: `Emulator failed to start: ${event.message}` });
         };
-        this.worker.postMessage({ type: 'start', sab: this.sab, firmwareUrl: this.firmwareUrl, files, card, costScale: 1 / this.esp32Speed });
+        const generation = Atomics.load(ctrl, CTRL.GENERATION);
+        this.worker.postMessage({ type: 'start', sab: this.sab, firmwareUrl: this.firmwareUrl, files, card, costScale: 1 / this.esp32Speed, generation });
         this.emit('state', { running: true, message: 'Starting…' });
     }
 
@@ -53,6 +54,8 @@ export class Emulator extends EventTarget {
             this.worker.terminate();
             this.worker = null;
         }
+        Atomics.add(this.ctrl, CTRL.GENERATION, 1);
+        this.wake();
         this.emit('speed', { ratio: null });
     }
 
@@ -124,6 +127,16 @@ export class Emulator extends EventTarget {
         }
     }
 
+    // The CIRCUITPY drive as a real board stores it, byte for byte.
+    driveImage() {
+        return new Promise((resolve, reject) => {
+            const timer = setTimeout(() => reject(new Error("The emulated board didn't answer.")), 5000);
+            this.addEventListener('drive-image', (event) => (clearTimeout(timer), resolve(event.detail)), { once: true });
+            Atomics.store(this.ctrl, CTRL.DRIVE_REQUEST, 1);
+            this.wake();
+        });
+    }
+
     nvmSnapshot() {
         const nvm = this.shared.nvm;
         return nvm.some((byte) => byte !== 0) ? nvm.slice() : null;
@@ -158,6 +171,9 @@ export class Emulator extends EventTarget {
                 break;
             case 'nvm':
                 this.emit('nvm');
+                break;
+            case 'drive-image':
+                this.emit('drive-image', message.bytes);
                 break;
             case 'restart':
                 this.emit('reset-requested', { reason: message.reason });

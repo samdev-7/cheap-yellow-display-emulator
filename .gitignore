@@ -5,3 +5,4 @@ firmware/.build/
 web/node_modules/
 web/dist/
 web/.env*.local
+web/public/circuitpython/

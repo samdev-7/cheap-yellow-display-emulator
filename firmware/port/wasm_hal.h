@@ -16,7 +16,8 @@ void wasm_hal_vm_counters(const uint32_t *opcodes, const uint32_t *calls);
 void wasm_serial_write(const char *text, uint32_t len);
 uint32_t wasm_serial_available(void);
 int wasm_serial_read(void);
-int wasm_serial_check_interrupt(void);
+// A Ctrl-C interrupts only while enabled; otherwise it stays as input.
+int wasm_serial_check_interrupt(bool enabled);
 
 // mode: 0 disabled, 1 input, 2 output, 3 open drain. pull: 0 none, 1 up, 2 down.
 void wasm_gpio_config(uint8_t pin, uint8_t mode, uint8_t pull);
@@ -39,6 +40,8 @@ void wasm_random_fill(uint8_t *buffer, uint32_t len);
 int wasm_fs_next_op(char *path_buf, uint32_t path_cap, uint32_t *data_len);
 void wasm_fs_op_data(uint8_t *dest);
 void wasm_fs_ops_done(int errors);
+// The CIRCUITPY drive, laid out as the ESP32's user_fs partition.
+void wasm_flash_init(uint8_t *flash, uint32_t len);
 
 void wasm_wifi_set_home(const char *ssid, uint32_t len);
 int wasm_wifi_connect(const char *ssid, uint32_t len);

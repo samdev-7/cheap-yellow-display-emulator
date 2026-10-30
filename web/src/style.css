@@ -1220,6 +1220,86 @@ button.statusbar-item {
     margin-top: 18px;
 }
 
+.dialog.flash {
+    width: min(620px, calc(100vw - 32px));
+    max-height: calc(100vh - 32px);
+}
+
+.steps {
+    margin: 0;
+    padding-left: 20px;
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+.steps li + li {
+    margin-top: 14px;
+}
+
+.steps a {
+    color: inherit;
+    text-underline-offset: 2px;
+}
+
+.steps code {
+    font: 12px/1.5 ui-monospace, 'SF Mono', Menlo, monospace;
+}
+
+.flash-run {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 8px;
+}
+
+.flash-progress {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 16px;
+    font-size: 13px;
+    color: var(--muted);
+}
+
+.flash-progress progress {
+    flex: 1;
+}
+
+.flash-progress span {
+    flex: 2;
+}
+
+.flash-unsupported {
+    margin: 0;
+    padding: 10px 12px;
+    border: 1px solid var(--warning-border);
+    border-radius: 6px;
+    background: var(--warning-bg);
+    color: var(--warning-text);
+    font-size: 13px;
+}
+
+.steps .code {
+    position: relative;
+}
+
+.steps pre {
+    margin: 6px 0;
+    padding: 8px 64px 8px 10px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--bg);
+    overflow-x: auto;
+}
+
+.steps .copy {
+    position: absolute;
+    top: 11px;
+    right: 5px;
+    padding: 2px 8px;
+    font-size: 12px;
+}
+
 .turnstile {
     position: fixed;
     right: 16px;

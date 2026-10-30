@@ -119,7 +119,7 @@ void port_interrupt_after_ticks(uint32_t ticks) {
 }
 
 static void _poll_interrupts(void) {
-    if (mp_interrupt_char == CHAR_CTRL_C && wasm_serial_check_interrupt()) {
+    if (wasm_serial_check_interrupt(mp_interrupt_char == CHAR_CTRL_C)) {
         mp_sched_keyboard_interrupt();
     }
     if (_tick_enabled) {

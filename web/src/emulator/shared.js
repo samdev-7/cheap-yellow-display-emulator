@@ -12,6 +12,7 @@ export const CTRL = {
     BOOT_BUTTON: 7,
     LIGHT_MV: 8,
     FRAME: 9,
+    DRIVE_REQUEST: 10,
     DISPLAY_ON: 11,
     BACKLIGHT: 12,
     LED_RED: 13,
@@ -26,6 +27,7 @@ export const CTRL = {
     WAKE_KIND: 22,
     WAKE_PIN: 23,
     WAKE_VALUE: 24,
+    GENERATION: 25,
 };
 
 export const RESET_REASON = {

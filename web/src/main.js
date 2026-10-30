@@ -813,10 +813,77 @@ loadAccount();
 const settingsMenu = new Menu();
 $('settings').onclick = () => {
     settingsMenu.open($('settings'), [
+        { label: 'Flash physical device…', run: () => openFlash() },
         { label: 'WakaTime…', run: () => openWakatimeSettings() },
         { label: 'Reset panel sizes', run: () => panes.reset() },
     ]);
 };
+
+// Flash
+
+function showFlashManual(manual) {
+    $('flash-manual').hidden = !manual;
+    $('flash-auto').hidden = manual || !('serial' in navigator);
+    $('flash-unsupported').hidden = manual || 'serial' in navigator;
+    $('flash-manual-toggle').textContent = manual ? 'Back' : 'I want to do this manually';
+}
+
+function openFlash() {
+    showFlashManual(false);
+    $('flash-dialog').showModal();
+}
+
+// Uploads the project to the emulated board and returns its drive.
+async function projectDrive() {
+    const applied = new Promise((resolve) => emulator.addEventListener('files-applied', resolve, { once: true }));
+    flash();
+    const { detail } = await applied;
+    if (detail.errors) throw new Error("The project doesn't fit on the board's drive.");
+    return emulator.driveImage();
+}
+
+$('flash-manual-toggle').onclick = () => showFlashManual($('flash-manual').hidden);
+$('flash-close').onclick = () => $('flash-dialog').close();
+
+$('flash-start').onclick = async () => {
+    const status = (text) => ($('flash-status').textContent = text);
+    const bar = $('flash-progress').querySelector('progress');
+    $('flash-start').disabled = true;
+    bar.value = 0;
+    status('');
+    try {
+        const port = await navigator.serial.requestPort();
+        $('flash-progress').hidden = false;
+        const [{ flashDevice }, drive] = await Promise.all([import('./flash.js'), projectDrive()]);
+        await flashDevice(port, drive, { status, progress: (share) => (bar.value = share) });
+        status('Done. The board is running your project.');
+    } catch (error) {
+        // A closed port chooser is a NotFoundError: nothing to report.
+        if (error.name !== 'NotFoundError') status(error.message);
+    } finally {
+        $('flash-start').disabled = false;
+    }
+};
+
+$('flash-download').onclick = async () => {
+    const { flashImage } = await import('./flash.js');
+    const image = await flashImage(await projectDrive());
+    const link = el('a', { href: URL.createObjectURL(new Blob([image])), download: 'cyd-flash.bin' });
+    link.click();
+    URL.revokeObjectURL(link.href);
+};
+
+for (const block of $('flash-dialog').querySelectorAll('pre')) {
+    const copy = el('button', { type: 'button', className: 'copy', textContent: 'Copy' });
+    copy.onclick = async () => {
+        await navigator.clipboard.writeText(block.textContent);
+        copy.textContent = 'Copied';
+        setTimeout(() => (copy.textContent = 'Copy'), 1500);
+    };
+    const wrapper = el('div', { className: 'code' });
+    block.before(wrapper);
+    wrapper.append(block, copy);
+}
 
 $('download').onclick = async () => {
     const zip = new JSZip();

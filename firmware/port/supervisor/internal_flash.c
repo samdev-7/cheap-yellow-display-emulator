@@ -10,6 +10,8 @@
 #include "supervisor/flash.h"
 #include "supervisor/shared/internal_flash.h"
 
+#include "wasm_hal.h"
+
 static uint8_t _flash[INTERNAL_FLASH_FILESYSTEM_SIZE];
 static bool _flash_loaded;
 
@@ -18,6 +20,7 @@ void supervisor_flash_init(void) {
         return;
     }
     memset(_flash, 0xff, sizeof(_flash));
+    wasm_flash_init(_flash, sizeof(_flash));
     _flash_loaded = true;
 }
 
