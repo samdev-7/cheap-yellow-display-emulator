@@ -1,7 +1,9 @@
-// MicroPython 1.25 fibo(30) and bubble sort on an ESP32-S3 (Miguel Grinberg),
-// times 1.15 for the 240 MHz ESP32 (Peter Scruss, 2025).
-export const NS_PER_OPCODE = 411;
-export const NS_PER_CALL = 8700;
+// Nanoseconds on an ESP32-2432S028R running CircuitPython 10.3.1, fitted to 28
+// benchmarks: per opcode, VM entry, garbage collector step, allocation, map
+// lookup and print, per byte sent to the display, and per analog read.
+export const NS_PER_COUNT = [280, 2434, 176, 6237, 4958, 63056];
+export const NS_PER_DISPLAY_BYTE = 2268;
+export const NS_PER_ADC_READ = 184000;
 
 const MIN_SLEEP_MS = 2;
 const MAX_CREDIT_MS = 5;
@@ -15,21 +17,22 @@ export class Speed {
         this.report = report;
         this.enabled = enabled;
         this.costScale = costScale;
-        this.readOpcodes = () => 0;
-        this.readCalls = () => 0;
-        this.opcodes = 0;
-        this.calls = 0;
+        this.read = () => 0;
+        this.counts = NS_PER_COUNT.map(() => 0);
+        this.charged = 0;
         this.last = performance.now();
         this.debt = 0;
         this.window = { start: this.last, cost: 0, idle: 0, slept: 0 };
         this.slow = null;
     }
 
-    counters(readOpcodes, readCalls) {
-        this.readOpcodes = readOpcodes;
-        this.readCalls = readCalls;
-        this.opcodes = readOpcodes();
-        this.calls = readCalls();
+    counters(read) {
+        this.read = read;
+        this.counts = this.counts.map((_, i) => read(i));
+    }
+
+    charge(ns) {
+        this.charged += ns;
     }
 
     idled(ms) {
@@ -37,11 +40,14 @@ export class Speed {
     }
 
     tick() {
-        const opcodes = this.readOpcodes();
-        const calls = this.readCalls();
-        const cost = ((((opcodes - this.opcodes) >>> 0) * NS_PER_OPCODE + ((calls - this.calls) >>> 0) * NS_PER_CALL) / 1e6) * this.costScale;
-        this.opcodes = opcodes;
-        this.calls = calls;
+        let ns = this.charged;
+        this.charged = 0;
+        for (let i = 0; i < this.counts.length; i++) {
+            const count = this.read(i);
+            ns += ((count - this.counts[i]) >>> 0) * NS_PER_COUNT[i];
+            this.counts[i] = count;
+        }
+        const cost = (ns / 1e6) * this.costScale;
         const now = performance.now();
         this.debt = Math.max(-MAX_CREDIT_MS, this.debt + cost - (now - this.last));
         this.last = now;
@@ -78,6 +84,6 @@ export class Speed {
     }
 
     stats() {
-        return { opcodes: this.readOpcodes(), calls: this.readCalls() };
+        return this.counts.map((_, i) => this.read(i));
     }
 }

@@ -674,7 +674,7 @@ async function createWasm() {
 
   var _wasm_hal_restart = (reason) => Module.hal.restart(reason);
 
-  var _wasm_hal_vm_counters = (opcodes, calls) => Module.hal.vmCounters(() => HEAPU32[opcodes >> 2], () => HEAPU32[calls >> 2]);
+  var _wasm_hal_vm_counters = (counters) => Module.hal.vmCounters((i) => HEAPU32[(counters >> 2) + i]);
 
   var _wasm_i2c_read = (scl, addr, ptr, len) =>
           Module.hal.i2cRead(scl, addr, HEAPU8.subarray(ptr, ptr + len));

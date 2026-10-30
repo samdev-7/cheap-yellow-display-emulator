@@ -34,12 +34,11 @@ static bool _tick_enabled;
 static uint64_t _last_tick;
 static uint64_t _wake_at_tick;
 
-uint32_t wasm_vm_opcodes;
-uint32_t wasm_vm_calls;
+uint32_t wasm_vm_counters[6];
 
 safe_mode_t port_init(void) {
     _last_tick = port_get_raw_ticks(NULL);
-    wasm_hal_vm_counters(&wasm_vm_opcodes, &wasm_vm_calls);
+    wasm_hal_vm_counters(wasm_vm_counters);
     return SAFE_MODE_NONE;
 }
 
@@ -159,10 +158,10 @@ void port_idle_until_interrupt(void) {
 void port_background_task(void) {
     static uint32_t opcodes_at_poll;
     static uint32_t skipped;
-    if (wasm_vm_opcodes - opcodes_at_poll < POLL_EVERY_OPCODES && ++skipped < POLL_EVERY_CALLS) {
+    if (wasm_vm_counters[0] - opcodes_at_poll < POLL_EVERY_OPCODES && ++skipped < POLL_EVERY_CALLS) {
         return;
     }
-    opcodes_at_poll = wasm_vm_opcodes;
+    opcodes_at_poll = wasm_vm_counters[0];
     skipped = 0;
     _poll_interrupts();
 }

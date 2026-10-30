@@ -1,7 +1,7 @@
 import { CTRL, SERIAL_SIZE, unpackCard } from './shared.js';
-import { CYDBoard } from './board.js';
+import { CYDBoard, PIN } from './board.js';
 import { Network } from './network.js';
-import { Speed } from './speed.js';
+import { NS_PER_ADC_READ, NS_PER_DISPLAY_BYTE, Speed } from './speed.js';
 
 const OUTPUT_FLUSH_MS = 16;
 const OUTPUT_FLUSH_BYTES = 4096;
@@ -208,18 +208,26 @@ export function createHal(shared, files, post, card, { realSpeed = true, costSca
         gpioSet: (pin, value) => board.gpioSet(pin, value),
         gpioGet: (pin) => board.gpioGet(pin),
         spiConfig: () => {},
-        spiTransfer: (sck, out, into, len, writeValue) => board.spiTransfer(sck, out, into, len, writeValue),
+        spiTransfer: (sck, out, into, len, writeValue) => {
+            if (out && sck === PIN.LCD_SCK) {
+                speed.charge(len * NS_PER_DISPLAY_BYTE);
+            }
+            board.spiTransfer(sck, out, into, len, writeValue);
+        },
         i2cWrite: (scl, addr, data) => board.i2cWrite(scl, addr, data),
         i2cRead: (scl, addr, into) => board.i2cRead(scl, addr, into),
         pwmSet: (pin, duty, frequency) => board.pwmSet(pin, duty, frequency),
-        adcRead: (pin) => board.adcRead(pin),
+        adcRead: (pin) => {
+            speed.charge(NS_PER_ADC_READ);
+            return board.adcRead(pin);
+        },
         dacWrite: (pin, value) => board.dacWrite(pin, value),
 
         fsNextOp: () => pendingFiles.shift() ?? null,
         fsOpsDone: (errors) => post({ type: 'files-applied', errors }),
 
         net: new Network(ctrl, post),
-        vmCounters: (readOpcodes, readCalls) => speed.counters(readOpcodes, readCalls),
+        vmCounters: (read) => speed.counters(read),
         speed,
     };
 

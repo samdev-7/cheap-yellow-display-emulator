@@ -4,7 +4,7 @@ import { XPT2046 } from './xpt2046.js';
 import { SDCard } from './sdcard.js';
 import { adcMillivolts } from './analog.js';
 
-const PIN = {
+export const PIN = {
     BOOT: 0,
     LCD_DC: 2,
     LED_RED: 4,

@@ -70,8 +70,8 @@ const finish = () => {
     }
     const ctrl = shared.ctrl;
     if (values.fast) {
-        const { opcodes, calls } = hal.speed.stats();
-        console.error(`\n[ran ${opcodes} opcodes, ${calls} calls]`);
+        const [opcodes, entries] = hal.speed.stats();
+        console.error(`\n[ran ${opcodes} opcodes, ${entries} VM entries]`);
     }
     console.error(
         `\n[display ${Atomics.load(ctrl, CTRL.DISPLAY_ON) ? 'on' : 'off'}, backlight ${Atomics.load(ctrl, CTRL.BACKLIGHT)}, ` +

@@ -1,0 +1,51 @@
+diff --git a/py/gc.c b/py/gc.c
+index 757c27e..36b71f0 100644
+--- a/py/gc.c
++++ b/py/gc.c
+@@ -922,7 +922,12 @@ bool gc_alloc_possible(void) {
+     return MP_STATE_MEM(area).gc_pool_start != 0;
+ }
+ 
++#ifndef MICROPY_GC_HOOK_ALLOC
++#define MICROPY_GC_HOOK_ALLOC()
++#endif
++
+ void *gc_alloc(size_t n_bytes, unsigned int alloc_flags) {
++    MICROPY_GC_HOOK_ALLOC();
+     bool has_finaliser = alloc_flags & GC_ALLOC_FLAG_HAS_FINALISER;
+     size_t n_blocks = ((n_bytes + BYTES_PER_BLOCK - 1) & (~(BYTES_PER_BLOCK - 1))) / BYTES_PER_BLOCK;
+     DEBUG_printf("gc_alloc(" UINT_FMT " bytes -> " UINT_FMT " blocks)\n", n_bytes, n_blocks);
+diff --git a/py/map.c b/py/map.c
+index c434e0d..808da77 100644
+--- a/py/map.c
++++ b/py/map.c
+@@ -158,7 +158,12 @@ static void mp_map_rehash(mp_map_t *map) {
+ //  - returns slot, with key non-null and value=MP_OBJ_NULL if it was added
+ // MP_MAP_LOOKUP_REMOVE_IF_FOUND behaviour:
+ //  - returns NULL if not found, else the slot if was found in with key null and value non-null
++#ifndef MICROPY_HOOK_MAP_LOOKUP
++#define MICROPY_HOOK_MAP_LOOKUP()
++#endif
++
+ mp_map_elem_t *MICROPY_WRAP_MP_MAP_LOOKUP(mp_map_lookup)(mp_map_t * map, mp_obj_t index, mp_map_lookup_kind_t lookup_kind) {
++    MICROPY_HOOK_MAP_LOOKUP();
+     // If the map is a fixed array then we must only be called for a lookup
+     assert(!map->is_fixed || lookup_kind == MP_MAP_LOOKUP);
+ 
+diff --git a/py/mpprint.c b/py/mpprint.c
+index 62e80d1..1020932 100644
+--- a/py/mpprint.c
++++ b/py/mpprint.c
+@@ -70,7 +70,12 @@ int mp_print_str(const mp_print_t *print, const char *str) {
+     return len;
+ }
+ 
++#ifndef MICROPY_HOOK_PRINT
++#define MICROPY_HOOK_PRINT()
++#endif
++
+ int mp_print_strn(const mp_print_t *print, const char *str, size_t len, unsigned int flags, char fill, int width) {
++    MICROPY_HOOK_PRINT();
+     int left_pad = 0;
+     int right_pad = 0;
+     int pad = width - len;
